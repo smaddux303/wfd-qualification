@@ -336,9 +336,48 @@ tr.clickable:hover td { background: var(--surface2); cursor: pointer; }
   height: 200px; color: var(--muted); font-family: var(--mono); font-size: 13px;
 }
 
-/* ── RESPONSIVE ─────────────────────────────────────────────── */
+/* ── RESPONSIVE / MOBILE ────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* Hide sidebar on mobile */
   .sidebar { display: none; }
+
+  /* Bottom nav bar */
+  .mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 4px 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 10px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    gap: 4px;
+    transition: color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .mobile-nav-item.active { color: var(--accent); }
+  .mobile-nav-item svg { width: 22px; height: 22px; }
+
+  /* Pad page content so it doesn't hide behind bottom nav */
+  .main { padding-bottom: 70px; }
+
   .form-grid { grid-template-columns: 1fr; }
   .metric-row { grid-template-columns: 1fr 1fr; }
   .score-btn { min-width: 60px; font-size: 10px; }
@@ -346,4 +385,10 @@ tr.clickable:hover td { background: var(--surface2); cursor: pointer; }
   .page { padding: 16px; }
   .tab-row { gap: 6px; }
   .tab-row .btn { font-size: 11px; padding: 4px 10px; }
+  .page-header { gap: 8px; }
+  .section-title { font-size: 16px; }
+}
+
+@media (min-width: 641px) {
+  .mobile-nav { display: none; }
 }
