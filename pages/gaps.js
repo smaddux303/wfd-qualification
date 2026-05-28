@@ -3,9 +3,9 @@
 async function renderGapList() {
   destroyCharts();
   const c = selectedCandidate;
-  setMain('<div class="page"><div class="loading">Loading gaps…</div></div>');
 
-  const gaps = await fetchGaps(c.id);
+  const cached = candidateDataCache[c.id];
+  const gaps = cached ? cached.gaps : await fetchGaps(c.id);
   const open   = gaps.filter(g => g.status === 'open');
   const closed = gaps.filter(g => g.status === 'closed');
 
@@ -90,5 +90,6 @@ async function closeGap(gapId) {
   }).eq('id', gapId);
 
   if (error) { alert('Error closing gap: ' + error.message); return; }
+  invalidateCache(selectedCandidate.id);
   renderGapList();
 }
