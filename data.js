@@ -41,6 +41,11 @@ const CLOSURE_PATHWAYS = [
 
 const PHASES = ['I','II','III','IV'];
 
+const CANDIDATE_GROUP_LABELS = {
+  'paramedic_cadet':   'Probationary Paramedic',
+  'paramedic_on_hire': 'Paramedic-On-Hire'
+};
+
 const CONFERENCE_TYPES = [
   { value: 'initial_alignment',       label: 'Initial Alignment' },
   { value: 'midpoint_calibration',    label: 'Midpoint Calibration' },
