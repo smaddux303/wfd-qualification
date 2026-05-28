@@ -295,6 +295,22 @@ tr.clickable:hover td { background: var(--surface2); cursor: pointer; }
 .auth-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
 .auth-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
 
+.btn-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 6px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s;
+}
+.btn-link:hover { color: var(--text); }
+
 /* ── CHART LEGEND ───────────────────────────────────────────── */
 .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 11px; color: var(--muted); }
 .chart-legend span { display: flex; align-items: center; gap: 5px; }
