@@ -1,11 +1,70 @@
-// pages/candidates.js — Candidate list and overview page
+// pages/candidates.js — Candidate list and overview
+// Performance: in-memory cache, single parallel fetch per candidate, no repeat round-trips
 
+// ── Cache ──────────────────────────────────────────────────────
+// Stores all data for a candidate after first load.
+// Invalidated when a DCA is submitted or a gap is closed.
+const candidateDataCache = {};
+
+function invalidateCache(candidateId) {
+  delete candidateDataCache[candidateId];
+}
+
+async function getCandidateData(candidateId) {
+  if (candidateDataCache[candidateId]) return candidateDataCache[candidateId];
+
+  // Fire all four queries simultaneously — no waiting in line
+  const [candRes, avgRes, dcaRes, gapRes] = await Promise.all([
+    db.from('candidates')
+      .select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)')
+      .eq('id', candidateId)
+      .single(),
+    db.from('candidate_domain_averages')
+      .select('*')
+      .eq('candidate_id', candidateId)
+      .maybeSingle(),
+    db.from('dcas')
+      .select('*')
+      .eq('candidate_id', candidateId)
+      .order('incident_date'),
+    db.from('capability_gaps')
+      .select('*')
+      .eq('candidate_id', candidateId)
+      .order('created_at', { ascending: false })
+  ]);
+
+  const data = {
+    candidate: candRes.data,
+    avg:       avgRes.data,
+    dcas:      dcaRes.data || [],
+    gaps:      gapRes.data || []
+  };
+
+  candidateDataCache[candidateId] = data;
+  return data;
+}
+
+// ── Candidate list ─────────────────────────────────────────────
 async function renderCandidateList() {
   setActiveNav('candidates');
-  setMain('<div class="page"><div class="loading">Loading candidates…</div></div>');
+
+  // Show skeleton immediately — feels faster
+  setMain(`<div class="page">
+    <h1 class="section-title">Candidates</h1>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Group</th><th>Phase</th><th>FTI</th><th>Hours</th><th>Status</th>
+          </tr></thead>
+          <tbody><tr><td colspan="6" style="color:var(--muted);text-align:center;padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>`);
 
   let query = db.from('candidates').select(`
-    *, 
+    *,
     fti:assigned_fti_id(full_name),
     sam:assigned_sam_id(full_name)
   `).order('full_name');
@@ -49,22 +108,29 @@ async function renderCandidateList() {
   </div>`);
 }
 
+// ── Open candidate ─────────────────────────────────────────────
 async function openCandidate(id) {
-  setMain('<div class="page"><div class="loading">Loading…</div></div>');
-  await fetchCandidate(id);
-  renderCandidateOverview();
+  // Show skeleton right away
+  setMain(`<div class="page"><div class="loading">Loading…</div></div>`);
+
+  const { candidate, avg, dcas, gaps } = await getCandidateData(id);
+  selectedCandidate = candidate;
+  _renderOverviewWithData(candidate, avg, dcas, gaps);
 }
 
 async function renderCandidateOverview() {
   const c = selectedCandidate;
-  setMain('<div class="page"><div class="loading">Loading…</div></div>');
+  setMain(`<div class="page"><div class="loading">Loading…</div></div>`);
 
-  const [avg, dcas, gaps] = await Promise.all([
-    db.from('candidate_domain_averages').select('*').eq('candidate_id', c.id).single().then(r => r.data),
-    fetchDcas(c.id),
-    fetchGaps(c.id)
-  ]);
+  // Always re-fetch on explicit overview navigation to pick up any changes,
+  // but invalidate cache first so we get fresh data
+  invalidateCache(c.id);
+  const { candidate, avg, dcas, gaps } = await getCandidateData(c.id);
+  selectedCandidate = candidate;
+  _renderOverviewWithData(candidate, avg, dcas, gaps);
+}
 
+function _renderOverviewWithData(c, avg, dcas, gaps) {
   const openGaps     = gaps.filter(g => g.status === 'open').length;
   const criticalOpen = gaps.filter(g => g.status === 'open' && g.is_critical).length;
   const totalDcas    = dcas.length;
@@ -119,7 +185,9 @@ async function renderCandidateOverview() {
       <div style="position:relative;height:220px">
         <canvas id="history-chart" role="img" aria-label="Line chart of capability scores across DCAs"></canvas>
       </div>
-    </div>` : totalDcas === 0 ? alertHTML('info', 'No DCAs recorded yet. Use "+ New DCA" to add the first evaluation.') : ''}
+    </div>` : totalDcas === 0
+      ? alertHTML('info', 'No DCAs recorded yet. Use "+ New DCA" to add the first evaluation.')
+      : ''}
 
     <div class="card">
       <div class="card-title">Candidate information</div>
@@ -138,6 +206,7 @@ async function renderCandidateOverview() {
   if (totalDcas > 1) buildHistoryChart(dcas);
 }
 
+// ── Gap chips ──────────────────────────────────────────────────
 function buildGapChips(avg) {
   if (!avg) return `<p class="text-muted mb-2">No DCAs recorded yet — radar chart will appear after first evaluation.</p>`;
   const domains = [
@@ -156,9 +225,15 @@ function buildGapChips(avg) {
   return `<div class="gap-row"><span class="gap-label">Domain gaps:</span>${chips}</div>`;
 }
 
+// ── DCA history — use cached data ──────────────────────────────
 async function loadAndRenderDcaHistory() {
+  const cached = candidateDataCache[selectedCandidate.id];
+  if (cached) {
+    renderDcaHistory(cached.dcas);
+    return;
+  }
   setMain('<div class="page"><div class="loading">Loading…</div></div>');
-  const dcas = await fetchDcas(selectedCandidate.id);
+  const { dcas } = await getCandidateData(selectedCandidate.id);
   renderDcaHistory(dcas);
 }
 
@@ -199,6 +274,6 @@ function renderDcaHistory(dcas) {
         </table>
       </div>
     </div>
-    ${dcas.length > 0 ? `<p class="text-muted" style="margin-top:8px">Red values indicate a gap (demand exceeds capability). ⚠ = critical domain.</p>` : ''}
+    ${dcas.length > 0 ? `<p class="text-muted" style="margin-top:8px">Red = gap exists. ⚠ = critical domain.</p>` : ''}
   </div>`);
 }
