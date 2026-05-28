@@ -301,6 +301,8 @@ async function submitDca() {
   }
   if (gaps.length > 0) await db.from('capability_gaps').insert(gaps);
 
+  invalidateCache(selectedCandidate.id);
+
   document.getElementById('dca-success').textContent =
     `DCA saved.${gaps.length > 0 ? ` ${gaps.length} capability gap(s) created automatically.` : ' No gaps identified.'}`;
   document.getElementById('dca-success').style.display = 'block';
