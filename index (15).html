@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WFD Quals" />
+  <title>WFD Paramedic Qualification</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-box">
+    <p class="auth-dept">Westminster Fire Department</p>
+    <h1 class="auth-title">Paramedic Qualification</h1>
+    <p class="auth-sub">Sign in to access the FTI evaluation system</p>
+    <div id="auth-error" class="alert alert-error" style="display:none"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@westminsterco.gov" />
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>Password</label>
+      <input type="password" id="auth-password" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="handleLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none" class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <strong>WFD Paramedic</strong>
+      Qualification System
+    </div>
+    <nav class="nav" id="sidebar-nav">
+      <!-- injected by JS based on role -->
+    </nav>
+    <div class="sidebar-footer">
+      <p id="sidebar-name" class="sidebar-user"></p>
+      <p id="sidebar-role" class="sidebar-role"></p>
+      <button class="btn btn-sm" style="width:100%;margin-top:8px" onclick="handleSignOut()">Sign out</button>
+    </div>
+  </aside>
+  <main class="main" id="main-content"></main>
+</div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script src="pages/candidates.js"></script>
+<script src="pages/dca-form.js"></script>
+<script src="pages/gaps.js"></script>
+<script src="pages/charts.js"></script>
+<script src="pages/sam-conferences.js"></script>
+<script src="pages/phase-transitions.js"></script>
+<script src="pages/capstone.js"></script>
+<script src="pages/admin.js"></script>
+<script src="pages/reference.js"></script>
+</body>
+</html>
