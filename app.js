@@ -13,11 +13,34 @@ let historyChart   = null;
 // ── Boot ───────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await db.auth.getSession();
-  if (session) { currentUser = session.user; await loadProfile(); showApp(); }
 
-  db.auth.onAuthStateChange(async (_e, session) => {
-    if (session) { currentUser = session.user; await loadProfile(); showApp(); }
-    else { currentUser = null; currentProfile = null; showAuth(); }
+  // If Supabase has put a PKCE / recovery token in the URL hash,
+  // the onAuthStateChange below fires a PASSWORD_RECOVERY event.
+  // We just need to wait for it.
+
+  if (session) {
+    currentUser = session.user;
+    await loadProfile();
+    showApp();
+  } else {
+    showAuth();
+  }
+
+  db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      // User clicked the reset link in their email — show the set-password screen
+      showResetPassword();
+      return;
+    }
+    if (session) {
+      currentUser = session.user;
+      await loadProfile();
+      showApp();
+    } else {
+      currentUser = null;
+      currentProfile = null;
+      showAuth();
+    }
   });
 });
 
@@ -28,8 +51,31 @@ async function loadProfile() {
 
 // ── Auth ───────────────────────────────────────────────────────
 function showAuth() {
-  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('auth-screen').style.display  = 'flex';
+  document.getElementById('forgot-screen').style.display = 'none';
+  document.getElementById('reset-screen').style.display  = 'none';
   document.getElementById('app').style.display = 'none';
+}
+
+function showForgotPassword() {
+  document.getElementById('auth-screen').style.display   = 'none';
+  document.getElementById('forgot-screen').style.display = 'flex';
+  document.getElementById('reset-screen').style.display  = 'none';
+  // Pre-fill email if they already typed it
+  const email = document.getElementById('auth-email').value.trim();
+  if (email) document.getElementById('forgot-email').value = email;
+}
+
+function showSignIn() {
+  document.getElementById('auth-screen').style.display   = 'flex';
+  document.getElementById('forgot-screen').style.display = 'none';
+  document.getElementById('reset-screen').style.display  = 'none';
+}
+
+function showResetPassword() {
+  document.getElementById('auth-screen').style.display   = 'none';
+  document.getElementById('forgot-screen').style.display = 'none';
+  document.getElementById('reset-screen').style.display  = 'flex';
 }
 
 async function handleLogin() {
@@ -37,8 +83,69 @@ async function handleLogin() {
   const password = document.getElementById('auth-password').value;
   const errEl    = document.getElementById('auth-error');
   errEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
   const { error } = await db.auth.signInWithPassword({ email, password });
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+}
+
+async function handleForgotPassword() {
+  const email  = document.getElementById('forgot-email').value.trim();
+  const errEl  = document.getElementById('forgot-error');
+  const sucEl  = document.getElementById('forgot-success');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  if (!email) {
+    errEl.textContent = 'Please enter your email address.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+  } else {
+    sucEl.textContent = `Reset link sent to ${email}. Check your inbox — it may take a minute.`;
+    sucEl.style.display = 'block';
+  }
+}
+
+async function handleResetPassword() {
+  const password  = document.getElementById('reset-password').value;
+  const confirm   = document.getElementById('reset-password-confirm').value;
+  const errEl     = document.getElementById('reset-error');
+  const sucEl     = document.getElementById('reset-success');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  if (!password || password.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const { error } = await db.auth.updateUser({ password });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+  } else {
+    sucEl.textContent = 'Password updated. Signing you in…';
+    sucEl.style.display = 'block';
+    setTimeout(() => showApp(), 1500);
+  }
 }
 
 async function handleSignOut() {
