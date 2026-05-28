@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<!-- AUTH -->
+<!-- AUTH — Sign in -->
 <div id="auth-screen" class="auth-wrap">
   <div class="auth-box">
     <p class="auth-dept">Westminster Fire Department</p>
@@ -22,13 +22,55 @@
     <div id="auth-error" class="alert alert-error" style="display:none"></div>
     <div class="form-group">
       <label>Email</label>
-      <input type="email" id="auth-email" placeholder="you@westminsterco.gov" />
+      <input type="email" id="auth-email" placeholder="you@westminsterco.gov"
+        onkeydown="if(event.key==='Enter') document.getElementById('auth-password').focus()" />
     </div>
     <div class="form-group" style="margin-top:12px">
       <label>Password</label>
-      <input type="password" id="auth-password" />
+      <input type="password" id="auth-password"
+        onkeydown="if(event.key==='Enter') handleLogin()" />
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="handleLogin()">Sign in</button>
+    <button class="btn-link" onclick="showForgotPassword()">Forgot password?</button>
+  </div>
+</div>
+
+<!-- AUTH — Forgot password -->
+<div id="forgot-screen" class="auth-wrap" style="display:none">
+  <div class="auth-box">
+    <p class="auth-dept">Westminster Fire Department</p>
+    <h1 class="auth-title">Reset password</h1>
+    <p class="auth-sub">Enter your email and we'll send you a reset link.</p>
+    <div id="forgot-error"   class="alert alert-error"   style="display:none"></div>
+    <div id="forgot-success" class="alert alert-success" style="display:none"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="forgot-email" placeholder="you@westminsterco.gov"
+        onkeydown="if(event.key==='Enter') handleForgotPassword()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="handleForgotPassword()">Send reset link</button>
+    <button class="btn-link" onclick="showSignIn()">Back to sign in</button>
+  </div>
+</div>
+
+<!-- AUTH — Set new password (after clicking reset link) -->
+<div id="reset-screen" class="auth-wrap" style="display:none">
+  <div class="auth-box">
+    <p class="auth-dept">Westminster Fire Department</p>
+    <h1 class="auth-title">Set new password</h1>
+    <p class="auth-sub">Choose a new password for your account.</p>
+    <div id="reset-error"   class="alert alert-error"   style="display:none"></div>
+    <div id="reset-success" class="alert alert-success" style="display:none"></div>
+    <div class="form-group">
+      <label>New password</label>
+      <input type="password" id="reset-password" placeholder="At least 8 characters" />
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>Confirm new password</label>
+      <input type="password" id="reset-password-confirm"
+        onkeydown="if(event.key==='Enter') handleResetPassword()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="handleResetPassword()">Set password</button>
   </div>
 </div>
 
