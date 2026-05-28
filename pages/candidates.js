@@ -27,7 +27,7 @@ async function renderCandidateList() {
   const rows = candidates.map(c => `
     <tr class="clickable" onclick="openCandidate('${c.id}')">
       <td style="font-weight:500">${c.full_name}</td>
-      <td><span style="font-size:12px;color:var(--muted)">${(c.candidate_group||'').replace('_',' ')}</span></td>
+      <td><span style="font-size:12px;color:var(--muted)">${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></td>
       <td>${phaseBadge(c.current_phase)}</td>
       <td style="font-size:12px;color:var(--muted)">${c.fti?.full_name || '—'}</td>
       <td style="font-family:var(--mono);font-size:12px">${c.qualifying_hours}h</td>
@@ -124,7 +124,7 @@ async function renderCandidateOverview() {
     <div class="card">
       <div class="card-title">Candidate information</div>
       <div class="info-grid">
-        <div class="info-row"><span class="info-label">Group</span><span>${(c.candidate_group||'').replace('_',' ')}</span></div>
+        <div class="info-row"><span class="info-label">Group</span><span>${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></div>
         <div class="info-row"><span class="info-label">Attempt</span><span>${c.attempt_number} of 3</span></div>
         <div class="info-row"><span class="info-label">Program start</span><span>${formatDate(c.program_start_date)}</span></div>
         <div class="info-row"><span class="info-label">Max hours (primary)</span><span style="font-family:var(--mono)">${c.max_hours_primary}h</span></div>
