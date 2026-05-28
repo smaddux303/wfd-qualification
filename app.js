@@ -165,15 +165,32 @@ function showApp() {
 function buildNav() {
   const role = currentProfile?.role;
   const items = [
-    { key: 'candidates', label: 'Candidates',  roles: ['fti','sam_officer','admin'] },
-    { key: 'reference',  label: 'DCA Reference', roles: ['fti','sam_officer','admin'] },
-    { key: 'admin',      label: 'Admin',        roles: ['sam_officer','admin'] },
+    { key: 'candidates', label: 'Candidates', roles: ['fti','sam_officer','admin'],
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
+    { key: 'reference',  label: 'Reference',  roles: ['fti','sam_officer','admin'],
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>` },
+    { key: 'admin',      label: 'Admin',      roles: ['sam_officer','admin'],
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>` },
   ];
-  document.getElementById('sidebar-nav').innerHTML = items
-    .filter(i => i.roles.includes(role))
-    .map(i => `<button class="nav-item" id="nav-${i.key}" onclick="navTo('${i.key}')">
+
+  const visible = items.filter(i => i.roles.includes(role));
+
+  // Sidebar nav (desktop)
+  document.getElementById('sidebar-nav').innerHTML = visible.map(i =>
+    `<button class="nav-item" id="nav-${i.key}" onclick="navTo('${i.key}')">
       <span class="nav-dot"></span>${i.label}
     </button>`).join('');
+
+  // Bottom nav (mobile)
+  const mobileNav = document.getElementById('mobile-nav-bar');
+  if (mobileNav) {
+    mobileNav.innerHTML = visible.map(i =>
+      `<button class="mobile-nav-item" id="mobile-nav-${i.key}" onclick="navTo('${i.key}')">
+        ${i.icon}
+        ${i.label}
+      </button>`).join('');
+  }
+
   setActiveNav('candidates');
 }
 
@@ -187,8 +204,11 @@ function navTo(page) {
 
 function setActiveNav(key) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
   const el = document.getElementById(`nav-${key}`);
   if (el) el.classList.add('active');
+  const mob = document.getElementById(`mobile-nav-${key}`);
+  if (mob) mob.classList.add('active');
 }
 
 // ── Page rendering helpers ─────────────────────────────────────
