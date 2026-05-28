@@ -4,16 +4,20 @@
 async function renderAdmin() {
   setActiveNav('admin');
   destroyCharts();
-  setMain('<div class="page"><div class="loading">Loading admin panel…</div></div>');
 
-  const [candidates, profiles] = await Promise.all([
+  // Show skeleton immediately
+  setMain('<div class="page"><h1 class="section-title">Admin Panel</h1><div class="loading">Loading…</div></div>');
+
+  // Fetch candidates and profiles simultaneously
+  const [candRes, profRes] = await Promise.all([
     db.from('candidates').select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)').order('full_name'),
     db.from('profiles').select('*').order('full_name')
   ]);
 
-  const ftis = (profiles.data||[]).filter(p => p.role === 'fti');
-  // SAM Officer dropdown only shows actual sam_officers, not admins
-  const sams = (profiles.data||[]).filter(p => p.role === 'sam_officer');
+  const candidates = candRes.data || [];
+  const profiles   = profRes.data || [];
+  const ftis = profiles.filter(p => p.role === 'fti');
+  const sams = profiles.filter(p => p.role === 'sam_officer');
 
   function shiftOptions(selected) {
     return ['','A','B','C'].map(s =>
@@ -152,7 +156,7 @@ async function renderAdmin() {
           <label>Candidate</label>
           <select id="hours-cand-id">
             <option value="">Select…</option>
-            ${(candidates.data||[]).map(c=>`<option value="${c.id}">${c.full_name} (${c.qualifying_hours}h)</option>`).join('')}
+            ${(candidates||[]).map(c=>`<option value="${c.id}">${c.full_name} (${c.qualifying_hours}h)</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -172,7 +176,7 @@ async function renderAdmin() {
           <label>Candidate</label>
           <select id="del-dca-cand" onchange="loadDcasForDelete()">
             <option value="">Select candidate…</option>
-            ${(candidates.data||[]).map(c=>`<option value="${c.id}">${c.full_name}</option>`).join('')}
+            ${(candidates||[]).map(c=>`<option value="${c.id}">${c.full_name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -188,14 +192,14 @@ async function renderAdmin() {
     <!-- All candidates table -->
     <div class="card" style="padding:0;overflow:hidden;margin-top:24px">
       <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:0">All candidates (${(candidates.data||[]).length})</div>
+        <div class="card-title" style="margin-bottom:0">All candidates (${(candidates||[]).length})</div>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr>
             <th>Name</th><th>Group</th><th>Phase</th><th>FTI</th><th>SAM</th><th>Status</th><th>Hours</th><th></th>
           </tr></thead>
-          <tbody>${(candidates.data||[]).map(candidateRow).join('') ||
+          <tbody>${(candidates||[]).map(candidateRow).join('') ||
             '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No candidates yet.</td></tr>'
           }</tbody>
         </table>
@@ -205,12 +209,12 @@ async function renderAdmin() {
     <!-- Staff profiles table -->
     <div class="card" style="padding:0;overflow:hidden;margin-top:16px">
       <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-        <div class="card-title" style="margin-bottom:0">Staff profiles (${(profiles.data||[]).length})</div>
+        <div class="card-title" style="margin-bottom:0">Staff profiles (${(profiles||[]).length})</div>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Name</th><th>Role</th><th>Shift</th><th></th></tr></thead>
-          <tbody>${(profiles.data||[]).map(profileRow).join('')}</tbody>
+          <tbody>${(profiles||[]).map(profileRow).join('')}</tbody>
         </table>
       </div>
     </div>
