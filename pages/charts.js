@@ -1,4 +1,5 @@
-// pages/charts.js — Chart.js radar and history builders
+// pages/charts.js — Radar and history charts
+// v10.1 update: Domain 4 now has capability (Cadence) — included in radar
 
 function buildRadarChart(avg) {
   const ctx = document.getElementById('radar-chart');
@@ -11,18 +12,19 @@ function buildRadarChart(avg) {
     parseFloat(avg.avg_d4_demand)||0,
     parseFloat(avg.avg_d5_demand)||0
   ];
+  // Domain 4 now has real capability data (v10.1)
   const cap = [
     parseFloat(avg.avg_d1_cap)||0,
     parseFloat(avg.avg_d2_cap)||0,
     parseFloat(avg.avg_d3_cap)||0,
-    demand[3], // time pressure — no cap score, mirror demand so polygon closes cleanly
+    parseFloat(avg.avg_d4_cap)||0,
     parseFloat(avg.avg_d5_cap)||0
   ];
 
   radarChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: ['Patient\nAssessment','Clinical\nMgmt','Motor\nSkills','Time\nPressure','CRM'],
+      labels: ['Patient\nAssessment','Clinical\nMgmt','Motor\nSkills','Time Pressure\n/ Cadence','CRM'],
       datasets: [
         {
           label: 'Avg demand',
@@ -77,10 +79,11 @@ function buildHistoryChart(dcas) {
     data: {
       labels: dcas.map((_,i) => `DCA ${i+1}`),
       datasets: [
-        { label:'Assessment',    data: dcas.map(d=>d.d1_capability), borderColor:'#534AB7', backgroundColor:'transparent', borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true },
-        { label:'Clinical mgmt', data: dcas.map(d=>d.d2_capability), borderColor:'#E24B4A', backgroundColor:'transparent', borderWidth:2, borderDash:[6,3], pointRadius:3, tension:0.3, spanGaps:true },
-        { label:'Motor skills',  data: dcas.map(d=>d.d3_capability), borderColor:'#D85A30', backgroundColor:'transparent', borderWidth:2, borderDash:[2,2], pointRadius:3, tension:0.3, spanGaps:true },
-        { label:'CRM',           data: dcas.map(d=>d.d5_capability), borderColor:'#3ecf8e', backgroundColor:'transparent', borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true }
+        { label:'Assessment',       data: dcas.map(d=>d.d1_capability), borderColor:'#534AB7', backgroundColor:'transparent', borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true },
+        { label:'Clinical mgmt',    data: dcas.map(d=>d.d2_capability), borderColor:'#E24B4A', backgroundColor:'transparent', borderWidth:2, borderDash:[6,3], pointRadius:3, tension:0.3, spanGaps:true },
+        { label:'Motor skills',     data: dcas.map(d=>d.d3_capability), borderColor:'#D85A30', backgroundColor:'transparent', borderWidth:2, borderDash:[2,2], pointRadius:3, tension:0.3, spanGaps:true },
+        { label:'Time P / Cadence', data: dcas.map(d=>d.d4_capability), borderColor:'#9B59B6', backgroundColor:'transparent', borderWidth:2, borderDash:[4,2], pointRadius:3, tension:0.3, spanGaps:true },
+        { label:'CRM',              data: dcas.map(d=>d.d5_capability), borderColor:'#3ecf8e', backgroundColor:'transparent', borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true }
       ]
     },
     options: {
