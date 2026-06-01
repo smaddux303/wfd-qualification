@@ -1,9 +1,6 @@
 // pages/candidates.js — Candidate list and overview
-// Performance: in-memory cache, single parallel fetch per candidate, no repeat round-trips
+// Changes: FTI sees all candidates (read), ePCR links in DCA history, Domain 4 in gap chips
 
-// ── Cache ──────────────────────────────────────────────────────
-// Stores all data for a candidate after first load.
-// Invalidated when a DCA is submitted or a gap is closed.
 const candidateDataCache = {};
 
 function invalidateCache(candidateId) {
@@ -13,7 +10,6 @@ function invalidateCache(candidateId) {
 async function getCandidateData(candidateId) {
   if (candidateDataCache[candidateId]) return candidateDataCache[candidateId];
 
-  // Fire all four queries simultaneously — no waiting in line
   const [candRes, avgRes, dcaRes, gapRes] = await Promise.all([
     db.from('candidates')
       .select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)')
@@ -27,8 +23,9 @@ async function getCandidateData(candidateId) {
       .select('*')
       .eq('candidate_id', candidateId)
       .order('incident_date'),
+    // Change #15 — join dca to get epcrlink for gap cards
     db.from('capability_gaps')
-      .select('*')
+      .select('*, dca:dca_id(epcrlink, incident_date, incident_number)')
       .eq('candidate_id', candidateId)
       .order('created_at', { ascending: false })
   ]);
@@ -48,7 +45,6 @@ async function getCandidateData(candidateId) {
 async function renderCandidateList() {
   setActiveNav('candidates');
 
-  // Show skeleton immediately — feels faster
   setMain(`<div class="page">
     <h1 class="section-title">Candidates</h1>
     <div class="card" style="padding:0;overflow:hidden">
@@ -63,17 +59,13 @@ async function renderCandidateList() {
     </div>
   </div>`);
 
-  let query = db.from('candidates').select(`
+  // Change #10 — FTIs now see ALL active candidates (not just their own)
+  // Write access is still restricted to assigned candidates (enforced in candidateTabs)
+  const { data: candidates } = await db.from('candidates').select(`
     *,
     fti:assigned_fti_id(full_name),
     sam:assigned_sam_id(full_name)
   `).order('full_name');
-
-  if (currentProfile?.role === 'fti') {
-    query = query.eq('assigned_fti_id', currentProfile.id);
-  }
-
-  const { data: candidates } = await query;
 
   if (!candidates || candidates.length === 0) {
     setMain(`<div class="page">
@@ -110,9 +102,7 @@ async function renderCandidateList() {
 
 // ── Open candidate ─────────────────────────────────────────────
 async function openCandidate(id) {
-  // Show skeleton right away
   setMain(`<div class="page"><div class="loading">Loading…</div></div>`);
-
   const { candidate, avg, dcas, gaps } = await getCandidateData(id);
   selectedCandidate = candidate;
   _renderOverviewWithData(candidate, avg, dcas, gaps);
@@ -121,9 +111,6 @@ async function openCandidate(id) {
 async function renderCandidateOverview() {
   const c = selectedCandidate;
   setMain(`<div class="page"><div class="loading">Loading…</div></div>`);
-
-  // Always re-fetch on explicit overview navigation to pick up any changes,
-  // but invalidate cache first so we get fresh data
   invalidateCache(c.id);
   const { candidate, avg, dcas, gaps } = await getCandidateData(c.id);
   selectedCandidate = candidate;
@@ -134,6 +121,14 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
   const openGaps     = gaps.filter(g => g.status === 'open').length;
   const criticalOpen = gaps.filter(g => g.status === 'open' && g.is_critical).length;
   const totalDcas    = dcas.length;
+
+  // Change #13 — full history export button for managers
+  const exportBtn = isManager()
+    ? `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="exportFullHistoryCSV()">⬇ Full history CSV</button>
+        <button class="btn btn-sm" onclick="exportFullHistoryPDF()">⬇ Full history PDF</button>
+      </div>`
+    : '';
 
   setMain(`<div class="page">
     ${backToList()}
@@ -160,6 +155,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
     </div>
 
     ${candidateTabs('overview')}
+    ${exportBtn}
 
     <div class="card">
       <div class="card-title">Demand vs capability — all DCAs averaged</div>
@@ -171,7 +167,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
       <div style="position:relative;height:300px">
         <canvas id="radar-chart" role="img" aria-label="Radar chart of demand vs capability across five DCA domains"></canvas>
       </div>
-      <p class="text-muted mt-2">Time Pressure shown as demand only. Gap = capability − demand; negative = behind demand.</p>
+      <p class="text-muted mt-2">Gap = capability − demand; negative = behind demand. Domain 4 Cadence: high score = well-matched pace, not necessarily fast.</p>
     </div>
 
     ${totalDcas > 1 ? `<div class="card">
@@ -180,6 +176,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
         <span><span class="legend-line" style="background:#534AB7"></span>Assessment</span>
         <span><span class="legend-line" style="background:#E24B4A"></span>Clinical mgmt ⚠</span>
         <span><span class="legend-line" style="background:#D85A30"></span>Motor skills ⚠</span>
+        <span><span class="legend-line" style="background:#9B59B6"></span>Time P / Cadence</span>
         <span><span class="legend-line" style="background:#3ecf8e"></span>CRM</span>
       </div>
       <div style="position:relative;height:220px">
@@ -193,10 +190,11 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
       <div class="card-title">Candidate information</div>
       <div class="info-grid">
         <div class="info-row"><span class="info-label">Group</span><span>${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></div>
+        <div class="info-row"><span class="info-label">Assigned FTI</span><span>${c.fti?.full_name || '—'}</span></div>
         <div class="info-row"><span class="info-label">Attempt</span><span>${c.attempt_number} of 3</span></div>
         <div class="info-row"><span class="info-label">Program start</span><span>${formatDate(c.program_start_date)}</span></div>
         <div class="info-row"><span class="info-label">Max hours (primary)</span><span style="font-family:var(--mono)">${c.max_hours_primary}h</span></div>
-        <div class="info-row"><span class="info-label">Extension granted</span><span>${c.extension_granted ? 'Yes' : 'No'}</span></div>
+        <div class="info-row"><span class="info-label">Extensions</span><span>${c.extension_granted && c.second_extension_granted ? 'Two granted' : c.extension_granted ? 'One granted' : 'None'}</span></div>
         ${c.notes ? `<div class="info-row full"><span class="info-label">Notes</span><span>${c.notes}</span></div>` : ''}
       </div>
     </div>
@@ -206,14 +204,15 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
   if (totalDcas > 1) buildHistoryChart(dcas);
 }
 
-// ── Gap chips ──────────────────────────────────────────────────
+// ── Gap chips — now includes Domain 4 ─────────────────────────
 function buildGapChips(avg) {
   if (!avg) return `<p class="text-muted mb-2">No DCAs recorded yet — radar chart will appear after first evaluation.</p>`;
   const domains = [
-    { key: 'gap_d1', label: 'Assessment',    critical: false },
-    { key: 'gap_d2', label: 'Clinical mgmt', critical: true  },
-    { key: 'gap_d3', label: 'Motor skills',  critical: true  },
-    { key: 'gap_d5', label: 'CRM',           critical: false }
+    { key: 'gap_d1', label: 'Assessment',      critical: false },
+    { key: 'gap_d2', label: 'Clinical mgmt',   critical: true  },
+    { key: 'gap_d3', label: 'Motor skills',    critical: true  },
+    { key: 'gap_d4', label: 'Time P/Cadence',  critical: false },
+    { key: 'gap_d5', label: 'CRM',             critical: false }
   ];
   const chips = domains.map(d => {
     const val = parseFloat(avg[d.key]) || 0;
@@ -225,13 +224,10 @@ function buildGapChips(avg) {
   return `<div class="gap-row"><span class="gap-label">Domain gaps:</span>${chips}</div>`;
 }
 
-// ── DCA history — use cached data ──────────────────────────────
+// ── DCA history — with ePCR links (Change #14) ────────────────
 async function loadAndRenderDcaHistory() {
   const cached = candidateDataCache[selectedCandidate.id];
-  if (cached) {
-    renderDcaHistory(cached.dcas);
-    return;
-  }
+  if (cached) { renderDcaHistory(cached.dcas); return; }
   setMain('<div class="page"><div class="loading">Loading…</div></div>');
   const { dcas } = await getCandidateData(selectedCandidate.id);
   renderDcaHistory(dcas);
@@ -242,10 +238,11 @@ function renderDcaHistory(dcas) {
   const c = selectedCandidate;
 
   const rows = dcas.length === 0
-    ? '<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:24px">No DCAs recorded yet.</td></tr>'
+    ? '<tr><td colspan="10" style="color:var(--muted);text-align:center;padding:24px">No DCAs recorded yet.</td></tr>'
     : dcas.map(d => {
         const d2gap = (d.d2_demand||0) > (d.d2_capability||0);
         const d3gap = (d.d3_demand||0) > (d.d3_capability||0);
+        const d4gap = (d.d4_demand||0) > (d.d4_capability||0);
         return `<tr>
           <td>${formatDate(d.incident_date)}</td>
           <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${d.incident_number||'—'}</td>
@@ -254,8 +251,9 @@ function renderDcaHistory(dcas) {
           <td>${scoreDisplay(d.d1_capability,'cap')}</td>
           <td style="color:${d2gap?'var(--red)':'inherit'}">${scoreDisplay(d.d2_capability,'cap')}</td>
           <td style="color:${d3gap?'var(--red)':'inherit'}">${scoreDisplay(d.d3_capability,'cap')}</td>
+          <td style="color:${d4gap?'var(--red)':'inherit'}">${scoreDisplay(d.d4_capability,'cap')}</td>
           <td>${scoreDisplay(d.d5_capability,'cap')}</td>
-          <td style="font-size:11px;color:var(--muted)">${d.trigger_type?.replace(/_/g,' ')||'—'}</td>
+          <td>${epcrlinkHTML(d.epcrlink)}</td>
         </tr>`;
       }).join('');
 
@@ -268,12 +266,12 @@ function renderDcaHistory(dcas) {
         <table>
           <thead><tr>
             <th>Date</th><th>Incident</th><th>Phase</th><th>Acuity</th>
-            <th>D1</th><th>D2 ⚠</th><th>D3 ⚠</th><th>D5</th><th>Trigger</th>
+            <th>D1</th><th>D2 ⚠</th><th>D3 ⚠</th><th>D4</th><th>D5</th><th>ePCR</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
     </div>
-    ${dcas.length > 0 ? `<p class="text-muted" style="margin-top:8px">Red = gap exists. ⚠ = critical domain.</p>` : ''}
+    <p class="text-muted" style="margin-top:8px">Red = gap exists. ⚠ = critical domain. D4 = Time Pressure / Cadence.</p>
   </div>`);
 }
