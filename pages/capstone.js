@@ -130,7 +130,7 @@ async function renderCapstoneForm() {
       ${domainScoreRow('d1', 'Patient Assessment')}
       ${domainScoreRow('d2', 'Clinical Management', '(min 4)')}
       ${domainScoreRow('d3', 'Motor Skills', '(min 4)')}
-      ${domainScoreRow('d4', 'Time Pressure', '')}
+      ${domainScoreRow('d4', 'Time Pressure / Cadence', '(min 4)')}
       ${domainScoreRow('d5', 'CRM', '')}
 
       <div id="cap-pass-indicator" style="margin-top:14px;font-family:var(--mono);font-size:13px;color:var(--muted)">
@@ -238,6 +238,7 @@ async function saveCapstone(existingId) {
     cap_d1: parseInt(document.getElementById('cap-cap-d1')?.value)||null,
     cap_d2: parseInt(document.getElementById('cap-cap-d2')?.value)||null,
     cap_d3: parseInt(document.getElementById('cap-cap-d3')?.value)||null,
+    cap_d4: parseInt(document.getElementById('cap-cap-d4')?.value)||null,
     cap_d5: parseInt(document.getElementById('cap-cap-d5')?.value)||null,
 
     // Checklist
