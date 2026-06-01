@@ -19,6 +19,7 @@ async function renderGapList() {
           ? `<span class="status-open">OPEN</span>`
           : `<span class="status-closed">CLOSED</span>`}
       </div>
+      ${g.dca?.epcrlink ? `<div style="margin-bottom:6px">${epcrlinkHTML(g.dca.epcrlink, '↗ View source ePCR')}</div>` : ''}
       <p style="font-size:13px;color:var(--muted);margin-bottom:${g.status==='open'?'12px':'4px'}">${g.gap_description}</p>
       ${g.closure_notes ? `<p style="font-size:12px;color:var(--muted)"><strong style="color:var(--green)">Closure:</strong> ${g.closure_notes}</p>` : ''}
       ${g.status === 'open' ? `
