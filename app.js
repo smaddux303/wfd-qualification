@@ -4,19 +4,15 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── Global state ───────────────────────────────────────────────
-let currentUser    = null;
-let currentProfile = null;
+let currentUser       = null;
+let currentProfile    = null;
 let selectedCandidate = null;
-let radarChart     = null;
-let historyChart   = null;
+let radarChart        = null;
+let historyChart      = null;
 
 // ── Boot ───────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await db.auth.getSession();
-
-  // If Supabase has put a PKCE / recovery token in the URL hash,
-  // the onAuthStateChange below fires a PASSWORD_RECOVERY event.
-  // We just need to wait for it.
 
   if (session) {
     currentUser = session.user;
@@ -28,7 +24,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
-      // User clicked the reset link in their email — show the set-password screen
       showResetPassword();
       return;
     }
@@ -49,9 +44,9 @@ async function loadProfile() {
   currentProfile = data;
 }
 
-// ── Auth ───────────────────────────────────────────────────────
+// ── Auth screens ───────────────────────────────────────────────
 function showAuth() {
-  document.getElementById('auth-screen').style.display  = 'flex';
+  document.getElementById('auth-screen').style.display   = 'flex';
   document.getElementById('forgot-screen').style.display = 'none';
   document.getElementById('reset-screen').style.display  = 'none';
   document.getElementById('app').style.display = 'none';
@@ -61,7 +56,6 @@ function showForgotPassword() {
   document.getElementById('auth-screen').style.display   = 'none';
   document.getElementById('forgot-screen').style.display = 'flex';
   document.getElementById('reset-screen').style.display  = 'none';
-  // Pre-fill email if they already typed it
   const email = document.getElementById('auth-email').value.trim();
   if (email) document.getElementById('forgot-email').value = email;
 }
@@ -93,9 +87,9 @@ async function handleLogin() {
 }
 
 async function handleForgotPassword() {
-  const email  = document.getElementById('forgot-email').value.trim();
-  const errEl  = document.getElementById('forgot-error');
-  const sucEl  = document.getElementById('forgot-success');
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error');
+  const sucEl = document.getElementById('forgot-success');
   errEl.style.display = 'none';
   sucEl.style.display = 'none';
 
@@ -119,10 +113,10 @@ async function handleForgotPassword() {
 }
 
 async function handleResetPassword() {
-  const password  = document.getElementById('reset-password').value;
-  const confirm   = document.getElementById('reset-password-confirm').value;
-  const errEl     = document.getElementById('reset-error');
-  const sucEl     = document.getElementById('reset-success');
+  const password = document.getElementById('reset-password').value;
+  const confirm  = document.getElementById('reset-password-confirm').value;
+  const errEl    = document.getElementById('reset-error');
+  const sucEl    = document.getElementById('reset-success');
   errEl.style.display = 'none';
   sucEl.style.display = 'none';
 
@@ -155,6 +149,8 @@ async function handleSignOut() {
 // ── App shell ──────────────────────────────────────────────────
 function showApp() {
   document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('forgot-screen').style.display = 'none';
+  document.getElementById('reset-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('sidebar-name').textContent = currentProfile?.full_name || '';
   document.getElementById('sidebar-role').textContent = (currentProfile?.role || '').replace('_',' ');
@@ -162,6 +158,7 @@ function showApp() {
   renderCandidateList();
 }
 
+// ── Navigation ─────────────────────────────────────────────────
 function buildNav() {
   const role = currentProfile?.role;
   const items = [
@@ -175,13 +172,11 @@ function buildNav() {
 
   const visible = items.filter(i => i.roles.includes(role));
 
-  // Sidebar nav (desktop)
   document.getElementById('sidebar-nav').innerHTML = visible.map(i =>
     `<button class="nav-item" id="nav-${i.key}" onclick="navTo('${i.key}')">
       <span class="nav-dot"></span>${i.label}
     </button>`).join('');
 
-  // Bottom nav (mobile)
   const mobileNav = document.getElementById('mobile-nav-bar');
   if (mobileNav) {
     mobileNav.innerHTML = visible.map(i =>
@@ -205,13 +200,13 @@ function navTo(page) {
 function setActiveNav(key) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
-  const el = document.getElementById(`nav-${key}`);
-  if (el) el.classList.add('active');
+  const el  = document.getElementById(`nav-${key}`);
   const mob = document.getElementById(`mobile-nav-${key}`);
+  if (el)  el.classList.add('active');
   if (mob) mob.classList.add('active');
 }
 
-// ── Page rendering helpers ─────────────────────────────────────
+// ── Page rendering ─────────────────────────────────────────────
 function setMain(html) {
   destroyCharts();
   document.getElementById('main-content').innerHTML = html;
@@ -229,7 +224,7 @@ function phaseBadge(phase) {
 
 function acuityBadge(acuity) {
   const colors = { green: 'var(--green)', yellow: 'var(--amber)', red: 'var(--red)' };
-  return `<span style="font-family:var(--mono);font-size:11px;color:${colors[acuity] || 'var(--muted)'}">${(acuity||'').toUpperCase()}</span>`;
+  return `<span style="font-family:var(--mono);font-size:11px;color:${colors[acuity]||'var(--muted)'}">${(acuity||'').toUpperCase()}</span>`;
 }
 
 function criticalTag() {
@@ -242,30 +237,38 @@ function alertHTML(type, msg) {
 
 function formatDate(str) {
   if (!str) return '—';
-  return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(str).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 }
 
 function tabRow(tabs, activeKey) {
   return `<div class="tab-row">${tabs.map(t =>
-    `<button class="btn btn-sm ${t.key === activeKey ? 'btn-primary' : ''}" onclick="${t.onclick}">${t.label}</button>`
+    `<button class="btn btn-sm ${t.key===activeKey?'btn-primary':''}" onclick="${t.onclick}">${t.label}</button>`
   ).join('')}</div>`;
 }
 
+// Change #10 — FTI can see all candidates (read), write only their own
+// Change #11 — isManager() used throughout instead of separate role checks
 function candidateTabs(active) {
-  const c = selectedCandidate;
-  return tabRow([
-    { key: 'overview',    label: 'Gap overview',     onclick: 'renderCandidateOverview()' },
-    { key: 'gaps',        label: 'Capability gaps',  onclick: 'renderGapList()' },
-    { key: 'dcas',        label: 'DCA history',      onclick: 'loadAndRenderDcaHistory()' },
-    { key: 'conferences', label: 'SAM conferences',  onclick: 'renderConferenceList()' },
-    { key: 'phase',       label: 'Phase log',        onclick: 'renderPhaseLog()' },
-    { key: 'capstone',    label: 'Capstone',         onclick: 'renderCapstoneForm()' },
-    { key: 'new-dca',     label: '+ New DCA',        onclick: 'renderDcaForm()' },
-  ], active);
+  const tabs = [
+    { key: 'overview',    label: 'Gap overview',    onclick: 'renderCandidateOverview()' },
+    { key: 'gaps',        label: 'Capability gaps', onclick: 'renderGapList()' },
+    { key: 'dcas',        label: 'DCA history',     onclick: 'loadAndRenderDcaHistory()' },
+    { key: 'conferences', label: 'SAM conferences', onclick: 'renderConferenceList()' },
+    { key: 'phase',       label: 'Phase log',       onclick: 'renderPhaseLog()' },
+    { key: 'capstone',    label: 'Capstone',        onclick: 'renderCapstoneForm()' },
+  ];
+
+  // Only show New DCA if this is the assigned FTI or a manager
+  const isAssignedFti = selectedCandidate?.assigned_fti_id === currentProfile?.id;
+  if (isAssignedFti || isManager()) {
+    tabs.push({ key: 'new-dca', label: '+ New DCA', onclick: 'renderDcaForm()' });
+  }
+
+  return tabRow(tabs, active);
 }
 
 function backToCandidate(label) {
-  return `<button class="btn btn-sm back-btn" onclick="renderCandidateOverview()">← ${label || 'Overview'}</button>`;
+  return `<button class="btn btn-sm back-btn" onclick="renderCandidateOverview()">← ${label||'Overview'}</button>`;
 }
 
 function backToList() {
@@ -273,9 +276,19 @@ function backToList() {
 }
 
 function scoreDisplay(score, type) {
-  if (!score) return '<span style="color:var(--muted)">—</span>';
+  if (score === null || score === undefined) return '<span style="color:var(--muted)">—</span>';
   const color = type === 'demand' ? '#4a7cff' : '#ff6b6b';
   return `<span style="font-family:var(--mono);color:${color}">${score}</span>`;
+}
+
+// ── ePCR link helper (Changes #14, #15) ───────────────────────
+function epcrlinkHTML(url, label) {
+  if (!url) return '<span style="color:var(--muted)">—</span>';
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer"
+    style="color:var(--accent);font-size:11px;font-family:var(--mono);text-decoration:none;white-space:nowrap"
+    title="Open ePCR / ImageTrend record">
+    ${label || '↗ ePCR'}
+  </a>`;
 }
 
 // ── Shared fetch helpers ───────────────────────────────────────
@@ -291,13 +304,25 @@ async function fetchDcas(candidateId) {
 }
 
 async function fetchGaps(candidateId) {
-  const { data } = await db.from('capability_gaps').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false });
+  const { data } = await db.from('capability_gaps')
+    .select('*, dca:dca_id(epcrlink)')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false });
   return data || [];
 }
 
 async function fetchProfiles(role) {
-  const query = db.from('profiles').select('*').order('full_name');
-  if (role) query.eq('role', role);
+  let query = db.from('profiles').select('*').order('full_name');
+  if (role) query = query.eq('role', role);
   const { data } = await query;
   return data || [];
+}
+
+// ── Filename helper for exports ────────────────────────────────
+function exportFilename(candidate, phase, ext) {
+  const parts = (candidate.full_name || 'Unknown').split(' ');
+  const last  = parts[parts.length - 1];
+  const first = parts[0];
+  const date  = new Date().toISOString().split('T')[0];
+  return `${last}_${first}_Phase${phase}_${date}.${ext}`;
 }
