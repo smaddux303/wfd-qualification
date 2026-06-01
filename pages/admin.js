@@ -71,7 +71,7 @@ async function renderAdmin() {
           <label>Candidate group *</label>
           <select id="new-cand-group">
             <option value="">Select…</option>
-            <option value="paramedic_cadet">Probationary Paramedic</option>
+            <option value="paramedic_cadet">Paramedic Cadet</option>
             <option value="paramedic_on_hire">Paramedic-On-Hire</option>
           </select>
         </div>
