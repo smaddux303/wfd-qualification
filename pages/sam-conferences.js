@@ -141,7 +141,7 @@ async function renderConferenceForm(type) {
              'Capability Gap identification and closure process',
              'Extension process and timeline',
              'Capstone structure and completion requirements',
-             'Candidate Pay Upgrade Agreement terms (Probationary Paramedics only)'
+             'Candidate Pay Upgrade Agreement terms (Paramedic Cadets only)'
             ].map(item => `<div class="check-row">
               <input type="checkbox" id="chk-${item.substring(0,10).replace(/\s/g,'')}" checked />
               <label style="font-family:var(--sans);text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">${item}</label>
