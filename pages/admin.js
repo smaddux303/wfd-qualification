@@ -250,8 +250,15 @@ async function renderAdmin() {
           </select>
         </div>
         <div class="form-group">
-          <label>Extension granted</label>
+          <label>First extension granted</label>
           <select id="edit-cand-extension">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Second extension granted</label>
+          <select id="edit-cand-second-extension">
             <option value="false">No</option>
             <option value="true">Yes</option>
           </select>
@@ -458,13 +465,14 @@ async function deleteProfile(id, name) {
 // ── Edit candidate ─────────────────────────────────────────────
 async function editCandidate(id) {
   const { data: c } = await db.from('candidates').select('*').eq('id', id).single();
-  document.getElementById('edit-cand-id').value        = c.id;
-  document.getElementById('edit-cand-name').value      = c.full_name;
-  document.getElementById('edit-cand-fti').value       = c.assigned_fti_id || '';
-  document.getElementById('edit-cand-sam').value       = c.assigned_sam_id || '';
-  document.getElementById('edit-cand-status').value    = c.program_status;
-  document.getElementById('edit-cand-extension').value = c.extension_granted ? 'true' : 'false';
-  document.getElementById('edit-cand-notes').value     = c.notes || '';
+  document.getElementById('edit-cand-id').value               = c.id;
+  document.getElementById('edit-cand-name').value             = c.full_name;
+  document.getElementById('edit-cand-fti').value              = c.assigned_fti_id || '';
+  document.getElementById('edit-cand-sam').value              = c.assigned_sam_id || '';
+  document.getElementById('edit-cand-status').value           = c.program_status;
+  document.getElementById('edit-cand-extension').value        = c.extension_granted ? 'true' : 'false';
+  document.getElementById('edit-cand-second-extension').value = c.second_extension_granted ? 'true' : 'false';
+  document.getElementById('edit-cand-notes').value            = c.notes || '';
   document.getElementById('edit-candidate-panel').style.display = 'block';
   document.getElementById('edit-candidate-panel').scrollIntoView({ behavior:'smooth' });
 }
@@ -472,12 +480,13 @@ async function editCandidate(id) {
 async function saveEditCandidate() {
   const id = document.getElementById('edit-cand-id').value;
   const { error } = await db.from('candidates').update({
-    full_name:        document.getElementById('edit-cand-name').value,
-    assigned_fti_id:  document.getElementById('edit-cand-fti').value || null,
-    assigned_sam_id:  document.getElementById('edit-cand-sam').value || null,
-    program_status:   document.getElementById('edit-cand-status').value,
-    extension_granted: document.getElementById('edit-cand-extension').value === 'true',
-    notes:            document.getElementById('edit-cand-notes').value || null
+    full_name:                document.getElementById('edit-cand-name').value,
+    assigned_fti_id:          document.getElementById('edit-cand-fti').value || null,
+    assigned_sam_id:          document.getElementById('edit-cand-sam').value || null,
+    program_status:           document.getElementById('edit-cand-status').value,
+    extension_granted:        document.getElementById('edit-cand-extension').value === 'true',
+    second_extension_granted: document.getElementById('edit-cand-second-extension').value === 'true',
+    notes:                    document.getElementById('edit-cand-notes').value || null
   }).eq('id', id);
 
   if (error) { alert(error.message); return; }
