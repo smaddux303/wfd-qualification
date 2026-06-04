@@ -143,7 +143,7 @@ async function renderConferenceForm(type) {
              'Capstone structure and completion requirements',
              'Candidate Pay Upgrade Agreement terms (Paramedic Cadets only)'
             ].map(item => `<div class="check-row">
-              <input type="checkbox" id="chk-${item.substring(0,10).replace(/\s/g,'')}" checked />
+              <input type="checkbox" id="chk-${item.substring(0,10).replace(/\s/g,'')}" />
               <label style="font-family:var(--sans);text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)">${item}</label>
             </div>`).join('')}
         </div>
