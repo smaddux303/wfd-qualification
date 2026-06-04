@@ -357,7 +357,7 @@ async function addCandidate() {
       <div class="card" style="margin-top:12px">
         ${renderNflAliasPicker(newCand.id, name)}
         <button class="btn btn-primary" style="margin-top:14px"
-          onclick="saveNflAlias('${newCand.id}').then(() => setTimeout(() => renderAdmin(), 1000))">
+          onclick="saveNflAlias('${newCand.id}', () => renderAdmin())">
           Save alias and continue
         </button>
         <button class="btn" style="margin-top:14px;margin-left:8px"
