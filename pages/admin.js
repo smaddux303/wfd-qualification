@@ -39,7 +39,9 @@ async function renderAdmin() {
 
   function candidateRow(c) {
     return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${c.candidate_code||'—'}</td>
       <td style="font-weight:500">${c.full_name}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.nfl_alias||'<span style="color:var(--amber);font-size:11px">No alias</span>'}</td>
       <td style="font-size:12px;color:var(--muted)">${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</td>
       <td>${phaseBadge(c.current_phase)}</td>
       <td style="font-size:12px;color:var(--muted)">${c.fti?.full_name||'—'}</td>
@@ -115,6 +117,7 @@ async function renderAdmin() {
         </div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px" onclick="addCandidate()">Add candidate</button>
+      <div id="new-cand-alias-area"></div>
     </div>
 
     <!-- Add new profile -->
@@ -197,7 +200,7 @@ async function renderAdmin() {
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Name</th><th>Group</th><th>Phase</th><th>FTI</th><th>SAM</th><th>Status</th><th>Hours</th><th></th>
+            <th>Code</th><th>Name</th><th>NFL Alias</th><th>Group</th><th>Phase</th><th>FTI</th><th>SAM</th><th>Status</th><th>Hours</th><th></th>
           </tr></thead>
           <tbody>${(candidates||[]).map(candidateRow).join('') ||
             '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No candidates yet.</td></tr>'
@@ -325,8 +328,12 @@ async function addCandidate() {
     return;
   }
 
-  const { error } = await db.from('candidates').insert({
+  // Auto-generate numeric code
+  const candidateCode = await generateCandidateCode();
+
+  const { data: newCand, error } = await db.from('candidates').insert({
     full_name:          name,
+    candidate_code:     candidateCode,
     candidate_group:    group,
     assigned_fti_id:    document.getElementById('new-cand-fti').value || null,
     assigned_sam_id:    document.getElementById('new-cand-sam').value || null,
@@ -336,12 +343,32 @@ async function addCandidate() {
     notes:              document.getElementById('new-cand-notes').value || null,
     program_status:     'active',
     qualifying_hours:   0
-  });
+  }).select().single();
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
-  sucEl.textContent = `Candidate "${name}" added.`;
+
+  sucEl.textContent = `Candidate "${name}" added with code ${candidateCode}. Now assign an NFL alias below.`;
   sucEl.style.display = 'block';
-  setTimeout(() => renderAdmin(), 1200);
+
+  // Show alias picker inline
+  const aliasArea = document.getElementById('new-cand-alias-area');
+  if (aliasArea && newCand) {
+    aliasArea.innerHTML = `
+      <div class="card" style="margin-top:12px">
+        ${renderNflAliasPicker(newCand.id, name)}
+        <button class="btn btn-primary" style="margin-top:14px"
+          onclick="saveNflAlias('${newCand.id}').then(() => setTimeout(() => renderAdmin(), 1000))">
+          Save alias and continue
+        </button>
+        <button class="btn" style="margin-top:14px;margin-left:8px"
+          onclick="renderAdmin()">
+          Skip for now
+        </button>
+      </div>`;
+    aliasArea.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    setTimeout(() => renderAdmin(), 1400);
+  }
 }
 
 // ── Add profile ────────────────────────────────────────────────
