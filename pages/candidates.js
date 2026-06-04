@@ -59,13 +59,27 @@ async function renderCandidateList() {
     </div>
   </div>`);
 
-  // Change #10 — FTIs now see ALL active candidates (not just their own)
-  // Write access is still restricted to assigned candidates (enforced in candidateTabs)
-  const { data: candidates } = await db.from('candidates').select(`
-    *,
-    fti:assigned_fti_id(full_name),
-    sam:assigned_sam_id(full_name)
-  `).order('full_name');
+  // Retry logic for stale connections
+  let candidates, fetchError;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { data, error } = await db.from('candidates').select(`
+      *,
+      fti:assigned_fti_id(full_name),
+      sam:assigned_sam_id(full_name)
+    `).order('full_name');
+    if (!error) { candidates = data; break; }
+    fetchError = error;
+    if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
+  }
+
+  if (fetchError && !candidates) {
+    setMain(`<div class="page">
+      <h1 class="section-title">Candidates</h1>
+      ${alertHTML('error', 'Failed to load candidates. Please try again.')}
+      <button class="btn btn-primary" style="margin-top:12px" onclick="renderCandidateList()">Retry</button>
+    </div>`);
+    return;
+  }
 
   if (!candidates || candidates.length === 0) {
     setMain(`<div class="page">
@@ -161,8 +175,8 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
       <div class="card-title">Demand vs capability — all DCAs averaged</div>
       ${buildGapChips(avg)}
       <div class="chart-legend">
-        <span><span class="legend-line" style="background:#4a7cff"></span>Avg demand</span>
-        <span><span class="legend-line" style="background:#ff6b6b"></span>Avg capability</span>
+        <span><span class="legend-line" style="background:#ff6b6b"></span>Avg demand</span>
+        <span><span class="legend-line" style="background:#4a7cff"></span>Avg capability</span>
       </div>
       <div style="position:relative;height:300px">
         <canvas id="radar-chart" role="img" aria-label="Radar chart of demand vs capability across five DCA domains"></canvas>
@@ -246,6 +260,7 @@ function renderDcaHistory(dcas) {
         return `<tr>
           <td>${formatDate(d.incident_date)}</td>
           <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${d.incident_number||'—'}</td>
+          <td>${epcrlinkHTML(d.epcrlink)}</td>
           <td>${phaseBadge(d.phase)}</td>
           <td>${acuityBadge(d.acuity)}</td>
           <td>${scoreDisplay(d.d1_capability,'cap')}</td>
@@ -253,7 +268,6 @@ function renderDcaHistory(dcas) {
           <td style="color:${d3gap?'var(--red)':'inherit'}">${scoreDisplay(d.d3_capability,'cap')}</td>
           <td style="color:${d4gap?'var(--red)':'inherit'}">${scoreDisplay(d.d4_capability,'cap')}</td>
           <td>${scoreDisplay(d.d5_capability,'cap')}</td>
-          <td>${epcrlinkHTML(d.epcrlink)}</td>
         </tr>`;
       }).join('');
 
@@ -265,8 +279,8 @@ function renderDcaHistory(dcas) {
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Incident</th><th>Phase</th><th>Acuity</th>
-            <th>D1</th><th>D2 ⚠</th><th>D3 ⚠</th><th>D4</th><th>D5</th><th>ePCR</th>
+            <th>Date</th><th>Incident</th><th>ePCR</th><th>Phase</th><th>Acuity</th>
+            <th>D1</th><th>D2 ⚠</th><th>D3 ⚠</th><th>D4</th><th>D5</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
