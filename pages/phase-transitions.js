@@ -306,7 +306,7 @@ async function exportPhaseCSV() {
     d.d5_demand||'', d.d5_capability||'',
     d.doc_accuracy||'', d.doc_completeness||'', d.doc_timeliness||'', d.doc_consistency||''
   ].map(v => `"${v}"`).join(','));
-  downloadFile([headers.join(','), ...rows].join('\n'), exportFilename(c, phase, 'csv'), 'text/csv');
+  downloadFile([headers.join(','), ...rows].join('\n'), exportFilenameAnon(c, phase, 'csv'), 'text/csv');
 }
 
 async function exportPhasePDF() {
@@ -336,7 +336,7 @@ async function exportFullHistoryCSV() {
     d.d5_demand||'', d.d5_capability||'',
     d.doc_accuracy||'', d.doc_completeness||'', d.doc_timeliness||'', d.doc_consistency||''
   ].map(v => `"${v}"`).join(','));
-  downloadFile([headers.join(','), ...rows].join('\n'), exportFilename(c, 'Full', 'csv'), 'text/csv');
+  downloadFile([headers.join(','), ...rows].join('\n'), exportFilenameAnon(c, 'Full', 'csv'), 'text/csv');
 }
 
 async function exportFullHistoryPDF() {
@@ -409,16 +409,19 @@ function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
     pageW - margin, 24, { align:'right' });
   y = 36;
 
-  // Candidate info
+  // Candidate info — use code and alias, not real name
+  const displayName = candidate.nfl_alias || candidate.candidate_code || 'REDACTED';
+  const displayCode = candidate.candidate_code || '—';
+
   heading('Candidate Information', 11); y += 2;
   const colW = contentW / 3;
   y += Math.max(
-    cell('Name', candidate.full_name, margin, colW),
-    cell('Group', CANDIDATE_GROUP_LABELS[candidate.candidate_group]||candidate.candidate_group, margin+colW, colW),
+    cell('Candidate Code', displayCode, margin, colW),
+    cell('NFL Alias', candidate.nfl_alias || '—', margin+colW, colW),
     cell('Current Phase', `Phase ${candidate.current_phase}`, margin+colW*2, colW)
   );
   y += Math.max(
-    cell('Program Start', formatDate(candidate.program_start_date), margin, colW),
+    cell('Group', CANDIDATE_GROUP_LABELS[candidate.candidate_group]||candidate.candidate_group, margin, colW),
     cell('Hours Logged', `${candidate.qualifying_hours}h`, margin+colW, colW),
     cell('Attempt', `${candidate.attempt_number} of 3`, margin+colW*2, colW)
   ) + 2;
@@ -516,11 +519,14 @@ function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
     doc.setFontSize(7); doc.setTextColor(150,150,150);
-    doc.text(`WFD Paramedic Qualification Program  •  ${candidate.full_name}  •  Page ${p} of ${pageCount}`,
+    doc.text(`WFD Paramedic Qualification Program  •  ${displayCode}  •  Page ${p} of ${pageCount}`,
       pageW/2, pageH-8, { align:'center' });
   }
 
-  doc.save(isFullHistory ? exportFilename(candidate,'Full','pdf') : exportFilename(candidate,phaseLabel,'pdf'));
+  // Use anonymized filename
+  doc.save(isFullHistory 
+    ? exportFilenameAnon(candidate,'Full','pdf') 
+    : exportFilenameAnon(candidate,phaseLabel,'pdf'));
 }
 
 function downloadFile(content, filename, mimeType) {
@@ -529,4 +535,11 @@ function downloadFile(content, filename, mimeType) {
   const a    = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+// Override exportFilename to use candidate code instead of real name
+function exportFilenameAnon(candidate, phase, ext) {
+  const code = candidate.candidate_code || 'WFD-PM-000';
+  const date = new Date().toISOString().split('T')[0];
+  return `${code}_Phase${phase}_${date}.${ext}`;
 }
