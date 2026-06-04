@@ -165,7 +165,7 @@ async function loadCandidatesForAliasAssign() {
 
   sel.innerHTML = '<option value="">Select candidate code…</option>' +
     (data || []).map(c =>
-      `<option value="${c.id}">${c.candidate_code}${c.nfl_alias ? ' — ' + c.nfl_alias : ' — no alias'}</option>`
+      `<option value="${c.id}">${c.candidate_code}${c.nfl_alias ? ' ✓' : ''}</option>`
     ).join('');
 }
 
