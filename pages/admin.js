@@ -41,7 +41,6 @@ async function renderAdmin() {
     return `<tr>
       <td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${c.candidate_code||'—'}</td>
       <td style="font-weight:500">${c.full_name}</td>
-      <td style="font-size:12px;color:var(--muted)">${c.nfl_alias||'<span style="color:var(--amber);font-size:11px">No alias</span>'}</td>
       <td style="font-size:12px;color:var(--muted)">${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</td>
       <td>${phaseBadge(c.current_phase)}</td>
       <td style="font-size:12px;color:var(--muted)">${c.fti?.full_name||'—'}</td>
@@ -199,7 +198,7 @@ async function renderAdmin() {
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Code</th><th>Name</th><th>NFL Alias</th><th>Group</th><th>Phase</th><th>FTI</th><th>SAM</th><th>Status</th><th>Hours</th><th></th>
+            <th>Code</th><th>Name</th><th>Group</th><th>Phase</th><th>FTI</th><th>SAM</th><th>Status</th><th>Hours</th><th></th>
           </tr></thead>
           <tbody>${(candidates||[]).map(candidateRow).join('') ||
             '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No candidates yet.</td></tr>'
