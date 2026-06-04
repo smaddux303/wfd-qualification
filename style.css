@@ -323,6 +323,23 @@ tr.clickable:hover td { background: var(--surface2); cursor: pointer; }
 .ref-num.cap { color: var(--accent2); }
 .ref-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
+/* ── ANONYMIZATION / ALIAS PICKER ───────────────────────────── */
+.alias-picker { }
+.alias-option {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--surface2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.alias-option:hover { border-color: var(--accent); }
+.alias-option.alias-recommended { border-color: rgba(74,124,255,0.4); }
+.alias-option.alias-selected { border-color: var(--accent); background: rgba(74,124,255,0.12); }
+.alias-name { font-weight: 500; font-size: 14px; }
+.alias-score { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+
 /* ── MISC ───────────────────────────────────────────────────── */
 .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
 .page-header   { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
