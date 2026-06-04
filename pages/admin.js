@@ -117,7 +117,6 @@ async function renderAdmin() {
         </div>
       </div>
       <button class="btn btn-primary" style="margin-top:14px" onclick="addCandidate()">Add candidate</button>
-      <div id="new-cand-alias-area"></div>
     </div>
 
     <!-- Add new profile -->
@@ -331,7 +330,7 @@ async function addCandidate() {
   // Auto-generate numeric code
   const candidateCode = await generateCandidateCode();
 
-  const { data: newCand, error } = await db.from('candidates').insert({
+  const { error } = await db.from('candidates').insert({
     full_name:          name,
     candidate_code:     candidateCode,
     candidate_group:    group,
@@ -343,32 +342,13 @@ async function addCandidate() {
     notes:              document.getElementById('new-cand-notes').value || null,
     program_status:     'active',
     qualifying_hours:   0
-  }).select().single();
+  });
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
 
-  sucEl.textContent = `Candidate "${name}" added with code ${candidateCode}. Now assign an NFL alias below.`;
+  sucEl.textContent = `Candidate "${name}" added with code ${candidateCode}. Use Alias Lookup to assign their NFL alias.`;
   sucEl.style.display = 'block';
-
-  // Show alias picker inline
-  const aliasArea = document.getElementById('new-cand-alias-area');
-  if (aliasArea && newCand) {
-    aliasArea.innerHTML = `
-      <div class="card" style="margin-top:12px">
-        ${renderNflAliasPicker(newCand.id, name)}
-        <button class="btn btn-primary" style="margin-top:14px"
-          onclick="saveNflAlias('${newCand.id}', () => renderAdmin())">
-          Save alias and continue
-        </button>
-        <button class="btn" style="margin-top:14px;margin-left:8px"
-          onclick="renderAdmin()">
-          Skip for now
-        </button>
-      </div>`;
-    aliasArea.scrollIntoView({ behavior: 'smooth' });
-  } else {
-    setTimeout(() => renderAdmin(), 1400);
-  }
+  setTimeout(() => renderAdmin(), 1400);
 }
 
 // ── Add profile ────────────────────────────────────────────────
