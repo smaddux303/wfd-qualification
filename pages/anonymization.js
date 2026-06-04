@@ -142,22 +142,47 @@ function useCustomAlias(candidateId) {
   }
 }
 
-async function saveNflAlias(candidateId) {
+async function saveNflAlias(candidateId, afterSave) {
   const alias = selectedAliasValue[candidateId];
-  if (!alias) return;
+  if (!alias) {
+    alert('Please select or enter an NFL alias first.');
+    return;
+  }
+
+  // Show immediate saving feedback
+  const confirmEl = document.getElementById(`alias-confirm-${candidateId}`);
+  if (confirmEl) {
+    confirmEl.textContent = 'Saving…';
+    confirmEl.style.display = 'block';
+    confirmEl.className = 'alert alert-info';
+  }
 
   const { error } = await db.from('candidates')
     .update({ nfl_alias: alias })
     .eq('id', candidateId);
 
-  if (error) { alert('Error saving alias: ' + error.message); return; }
-
-  const confirmEl = document.getElementById(`alias-confirm-${candidateId}`);
-  if (confirmEl) {
-    confirmEl.textContent = `Alias "${alias}" saved.`;
-    confirmEl.style.display = 'block';
+  if (error) {
+    if (confirmEl) {
+      confirmEl.textContent = 'Error: ' + error.message;
+      confirmEl.className = 'alert alert-error';
+    }
+    return;
   }
+
+  if (confirmEl) {
+    confirmEl.textContent = `✓ Alias "${alias}" saved.`;
+    confirmEl.className = 'alert alert-success';
+  }
+
   delete selectedAliasValue[candidateId];
+
+  if (typeof afterSave === 'function') {
+    setTimeout(afterSave, 800);
+    return;
+  }
+
+  // Refresh the registry table in place
+  setTimeout(() => renderNameRegistry(), 700);
 }
 
 // ── Name Registry page ─────────────────────────────────────────
@@ -213,7 +238,8 @@ function showAliasAssignment(candidateId, candidateName) {
   area.innerHTML = `
     <div class="card">
       ${renderNflAliasPicker(candidateId, candidateName)}
-      <button class="btn btn-primary" style="margin-top:14px" onclick="saveNflAlias('${candidateId}')">
+      <button class="btn btn-primary" style="margin-top:14px"
+        onclick="saveNflAlias('${candidateId}')">
         Save alias
       </button>
     </div>`;
