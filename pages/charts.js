@@ -29,20 +29,20 @@ function buildRadarChart(avg) {
         {
           label: 'Avg demand',
           data: demand,
-          borderColor: '#4a7cff',
-          backgroundColor: 'rgba(74,124,255,0.10)',
+          borderColor: '#ff6b6b',
+          backgroundColor: 'rgba(255,107,107,0.10)',
           borderWidth: 2,
-          pointBackgroundColor: '#4a7cff',
+          pointBackgroundColor: '#ff6b6b',
           pointRadius: 4
         },
         {
           label: 'Avg capability',
           data: cap,
-          borderColor: '#ff6b6b',
-          backgroundColor: 'rgba(255,107,107,0.10)',
+          borderColor: '#4a7cff',
+          backgroundColor: 'rgba(74,124,255,0.10)',
           borderWidth: 2,
           borderDash: [5,3],
-          pointBackgroundColor: '#ff6b6b',
+          pointBackgroundColor: '#4a7cff',
           pointRadius: 4
         }
       ]
