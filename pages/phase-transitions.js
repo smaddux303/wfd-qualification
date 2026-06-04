@@ -1,17 +1,45 @@
-// pages/phase-transitions.js — Phase log, advancement/regression, and export
+// pages/phase-transitions.js — Phase log, hours logging, advancement/regression, export
+
+// ── Connection retry wrapper (Fix #3) ─────────────────────────
+async function dbQuery(fn) {
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await fn();
+      if (!result.error) return result;
+      if (attempt === MAX_RETRIES) return result;
+      await new Promise(r => setTimeout(r, 800 * attempt));
+    } catch (e) {
+      if (attempt === MAX_RETRIES) throw e;
+      await new Promise(r => setTimeout(r, 800 * attempt));
+    }
+  }
+}
 
 async function renderPhaseLog() {
   destroyCharts();
   const c = selectedCandidate;
-  setMain('<div class="page"><div class="loading">Loading phase log…</div></div>');
+  setMain(`<div class="page"><div class="loading">Loading phase log…</div></div>`);
 
-  const { data: transitions } = await db
-    .from('phase_transitions')
-    .select('*, sam:sam_id(full_name), fti:fti_id(full_name)')
-    .eq('candidate_id', c.id)
-    .order('created_at');
+  const result = await dbQuery(() =>
+    db.from('phase_transitions')
+      .select('*, sam:sam_id(full_name), fti:fti_id(full_name)')
+      .eq('candidate_id', c.id)
+      .order('created_at')
+  );
 
-  const rows = !transitions || transitions.length === 0
+  if (result.error) {
+    setMain(`<div class="page">
+      ${backToCandidate()}
+      ${alertHTML('error', 'Failed to load phase log. Please try again.')}
+      <button class="btn btn-primary" style="margin-top:12px" onclick="renderPhaseLog()">Retry</button>
+    </div>`);
+    return;
+  }
+
+  const transitions = result.data || [];
+
+  const rows = transitions.length === 0
     ? '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No phase transitions recorded yet.</td></tr>'
     : transitions.map(t => {
         const dirColor = t.direction === 'advance' ? 'var(--green)' : 'var(--red)';
@@ -25,12 +53,43 @@ async function renderPhaseLog() {
         </tr>`;
       }).join('');
 
-  // Change #12 — export buttons for managers only
-  // Change #13 — full history export
+  // Fix #2 — FTIs can log hours for their assigned candidate
+  const isAssignedFti = c.assigned_fti_id === currentProfile?.id;
+  const canLogHours   = isAssignedFti || isManager();
+
+  const hoursForm = canLogHours ? `
+    <div class="card">
+      <div class="card-title">Log shift hours</div>
+      <p class="text-muted mb-2">Log on-shift qualifying hours. Exclude non-qualifying staffing configurations per Directive Section 6.2.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Shift date</label>
+          <input type="date" id="hours-date" value="${new Date().toISOString().split('T')[0]}" />
+        </div>
+        <div class="form-group">
+          <label>Hours this shift</label>
+          <input type="number" id="hours-shift" placeholder="e.g. 12" step="0.5" min="0" max="24" />
+        </div>
+        <div class="form-group full">
+          <label>Notes (optional)</label>
+          <input type="text" id="hours-notes" placeholder="e.g. No qualifying calls this shift" />
+        </div>
+      </div>
+      <div id="hours-error"   class="alert alert-error"   style="display:none;margin-top:10px"></div>
+      <div id="hours-success" class="alert alert-success" style="display:none;margin-top:10px"></div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="logShiftHours()">Add hours</button>
+        <span style="font-size:13px;color:var(--muted)">
+          Current total: <strong style="color:var(--text);font-family:var(--mono)" id="hours-running-total">${c.qualifying_hours}h</strong>
+          of ${c.max_hours_primary}h standard window
+        </span>
+      </div>
+    </div>` : '';
+
   const exportButtons = isManager() ? `
     <div class="card">
       <div class="card-title">Export phase data</div>
-      <p class="text-muted mb-2">Export data for the phase being completed. Select the phase to export, then choose your format.</p>
+      <p class="text-muted mb-2">Export data for the phase being completed. Select the phase then choose your format.</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Phase to export</label>
@@ -40,8 +99,8 @@ async function renderPhaseLog() {
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-        <button class="btn" onclick="exportPhaseCSV()">⬇ Download CSV</button>
-        <button class="btn" onclick="exportPhasePDF()">⬇ Download PDF</button>
+        <button class="btn" onclick="exportPhaseCSV()">⬇ Phase CSV</button>
+        <button class="btn" onclick="exportPhasePDF()">⬇ Phase PDF</button>
         <button class="btn" style="margin-left:auto" onclick="exportFullHistoryCSV()">⬇ Full history CSV</button>
         <button class="btn" onclick="exportFullHistoryPDF()">⬇ Full history PDF</button>
       </div>
@@ -50,7 +109,7 @@ async function renderPhaseLog() {
   const phaseForm = isManager() ? `
     <div class="card">
       <div class="card-title">Log phase transition</div>
-      ${alertHTML('warn', 'Phase advancement requires: all Critical Domain gaps closed, SAM Conference completed for the current phase, and SAM Officer approval. Phase transition DCAs require minimum Demand score of 3 across all domains.')}
+      ${alertHTML('warn', 'Phase advancement requires: all Critical Domain gaps closed, SAM Conference completed, and SAM Officer approval. Phase transition DCAs require minimum Demand score of 3 across all domains.')}
       <div class="form-grid">
         <div class="form-group">
           <label>Direction</label>
@@ -65,12 +124,8 @@ async function renderPhaseLog() {
             ${PHASES.map(p => `<option value="${p}" ${p===c.current_phase?'selected':''}>${p}</option>`).join('')}
           </select>
         </div>
-        <div class="form-group">
-          <label>Hours at transition</label>
-          <input type="number" id="pt-hours" value="${c.qualifying_hours}" step="0.5" />
-        </div>
         <div class="form-group full">
-          <label>Basis for transition * (required — specific justification)</label>
+          <label>Basis for transition * (required)</label>
           <textarea id="pt-basis" placeholder="e.g. Candidate has demonstrated consistent organized assessment across 8 DCAs in Phase II. All Critical Domain gaps closed. Midpoint Calibration completed. SAM Officer approved advancement."></textarea>
         </div>
       </div>
@@ -112,20 +167,69 @@ async function renderPhaseLog() {
       </div>
     </div>
 
+    ${hoursForm}
     ${exportButtons}
     ${phaseForm}
   </div>`);
 }
 
+// ── Log shift hours ────────────────────────────────────────────
+async function logShiftHours() {
+  const errEl = document.getElementById('hours-error');
+  const sucEl = document.getElementById('hours-success');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const shiftHours = parseFloat(document.getElementById('hours-shift')?.value);
+  const date       = document.getElementById('hours-date')?.value;
+
+  if (!date || isNaN(shiftHours) || shiftHours <= 0) {
+    errEl.textContent = 'Please enter a valid date and number of hours.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (shiftHours > 24) {
+    errEl.textContent = 'Hours cannot exceed 24 for a single shift.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const c        = selectedCandidate;
+  const newTotal = parseFloat((c.qualifying_hours + shiftHours).toFixed(1));
+
+  const { error } = await db.from('candidates')
+    .update({ qualifying_hours: newTotal })
+    .eq('id', c.id);
+
+  if (error) {
+    errEl.textContent = 'Error saving hours: ' + error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  selectedCandidate = { ...c, qualifying_hours: newTotal };
+  invalidateCache(c.id);
+
+  sucEl.textContent = `${shiftHours}h added. New total: ${newTotal}h.`;
+  sucEl.style.display = 'block';
+
+  document.getElementById('hours-shift').value = '';
+  document.getElementById('hours-notes').value = '';
+
+  // Update running total display without full reload
+  const totalEl = document.getElementById('hours-running-total');
+  if (totalEl) totalEl.textContent = `${newTotal}h`;
+}
+
 // ── Save phase transition ──────────────────────────────────────
 async function savePhaseTransition() {
-  const errEl     = document.getElementById('pt-error');
+  const errEl = document.getElementById('pt-error');
   errEl.style.display = 'none';
 
   const direction   = document.getElementById('pt-direction').value;
   const targetPhase = document.getElementById('pt-target-phase').value;
   const basis       = document.getElementById('pt-basis').value.trim();
-  const hours       = parseFloat(document.getElementById('pt-hours').value) || null;
 
   if (!basis) {
     errEl.textContent = 'Basis for transition is required.';
@@ -142,14 +246,14 @@ async function savePhaseTransition() {
     from_phase:   c.current_phase,
     to_phase:     targetPhase,
     direction,
-    hours_at_transition: hours,
+    hours_at_transition: c.qualifying_hours,
     basis
   });
 
   if (transErr) { errEl.textContent = transErr.message; errEl.style.display = 'block'; return; }
 
   const { error: updateErr } = await db.from('candidates')
-    .update({ current_phase: targetPhase, qualifying_hours: hours || c.qualifying_hours })
+    .update({ current_phase: targetPhase })
     .eq('id', c.id);
 
   if (updateErr) { errEl.textContent = updateErr.message; errEl.style.display = 'block'; return; }
@@ -159,7 +263,7 @@ async function savePhaseTransition() {
   renderPhaseLog();
 }
 
-// ── Export helpers ─────────────────────────────────────────────
+// ── Export helpers (keep existing functions below) ─────────────
 async function getExportData(phase) {
   const c = selectedCandidate;
   const [dcaRes, gapRes] = await Promise.all([
@@ -180,12 +284,10 @@ async function getAllExportData() {
   return { dcas: dcaRes.data || [], gaps: gapRes.data || [] };
 }
 
-// Change #12 — Phase CSV export
 async function exportPhaseCSV() {
   const phase = document.getElementById('export-phase-select')?.value || selectedCandidate.current_phase;
   const { dcas } = await getExportData(phase);
   const c = selectedCandidate;
-
   const headers = [
     'Incident Date','Incident Number','Phase','Acuity','Trigger',
     'D1 Demand','D1 Capability',
@@ -195,7 +297,6 @@ async function exportPhaseCSV() {
     'D5 Demand (CRM)','D5 Capability',
     'Doc Accuracy','Doc Completeness','Doc Timeliness','Doc Consistency'
   ];
-
   const rows = dcas.map(d => [
     d.incident_date, d.incident_number||'', d.phase, d.acuity, d.trigger_type||'',
     d.d1_demand||'', d.d1_capability||'',
@@ -205,24 +306,18 @@ async function exportPhaseCSV() {
     d.d5_demand||'', d.d5_capability||'',
     d.doc_accuracy||'', d.doc_completeness||'', d.doc_timeliness||'', d.doc_consistency||''
   ].map(v => `"${v}"`).join(','));
-
-  const csv = [headers.join(','), ...rows].join('\n');
-  downloadFile(csv, exportFilename(c, phase, 'csv'), 'text/csv');
+  downloadFile([headers.join(','), ...rows].join('\n'), exportFilename(c, phase, 'csv'), 'text/csv');
 }
 
-// Change #12 — Phase PDF export
 async function exportPhasePDF() {
   const phase = document.getElementById('export-phase-select')?.value || selectedCandidate.current_phase;
   const { dcas, gaps } = await getExportData(phase);
-  const c = selectedCandidate;
-  generatePDF(c, phase, dcas, gaps, false);
+  generatePDF(selectedCandidate, phase, dcas, gaps, false);
 }
 
-// Change #13 — Full history CSV
 async function exportFullHistoryCSV() {
   const { dcas } = await getAllExportData();
   const c = selectedCandidate;
-
   const headers = [
     'Incident Date','Incident Number','Phase','Acuity','Trigger',
     'D1 Demand','D1 Capability',
@@ -232,7 +327,6 @@ async function exportFullHistoryCSV() {
     'D5 Demand (CRM)','D5 Capability',
     'Doc Accuracy','Doc Completeness','Doc Timeliness','Doc Consistency'
   ];
-
   const rows = dcas.map(d => [
     d.incident_date, d.incident_number||'', d.phase, d.acuity, d.trigger_type||'',
     d.d1_demand||'', d.d1_capability||'',
@@ -242,21 +336,15 @@ async function exportFullHistoryCSV() {
     d.d5_demand||'', d.d5_capability||'',
     d.doc_accuracy||'', d.doc_completeness||'', d.doc_timeliness||'', d.doc_consistency||''
   ].map(v => `"${v}"`).join(','));
-
-  const csv = [headers.join(','), ...rows].join('\n');
-  downloadFile(csv, exportFilename(c, 'Full', 'csv'), 'text/csv');
+  downloadFile([headers.join(','), ...rows].join('\n'), exportFilename(c, 'Full', 'csv'), 'text/csv');
 }
 
-// Change #13 — Full history PDF
 async function exportFullHistoryPDF() {
   const { dcas, gaps } = await getAllExportData();
-  const c = selectedCandidate;
-  generatePDF(c, 'Full Program History', dcas, gaps, true);
+  generatePDF(selectedCandidate, 'Full Program History', dcas, gaps, true);
 }
 
-// ── PDF generation ─────────────────────────────────────────────
 function generatePDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
-  // Load jsPDF from CDN if not already loaded
   if (typeof window.jspdf === 'undefined') {
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
@@ -269,8 +357,7 @@ function generatePDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
 
 function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
-
+  const doc      = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
   const margin   = 20;
   const pageW    = doc.internal.pageSize.getWidth();
   const pageH    = doc.internal.pageSize.getHeight();
@@ -278,28 +365,15 @@ function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
   let y          = margin;
 
   function checkPage(needed) {
-    if (y + needed > pageH - margin) {
-      doc.addPage();
-      y = margin;
-    }
+    if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
   }
 
-  function heading(text, size, color) {
+  function heading(text, size) {
     doc.setFontSize(size || 11);
-    doc.setTextColor(...(color || [15,17,23]));
+    doc.setTextColor(15,17,23);
     doc.setFont('helvetica','bold');
     doc.text(text, margin, y);
     y += (size || 11) * 0.5;
-  }
-
-  function body(text, size) {
-    doc.setFontSize(size || 9);
-    doc.setTextColor(60,60,60);
-    doc.setFont('helvetica','normal');
-    const lines = doc.splitTextToSize(text, contentW);
-    checkPage(lines.length * 5);
-    doc.text(lines, margin, y);
-    y += lines.length * 5;
   }
 
   function rule() {
@@ -316,81 +390,62 @@ function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
     doc.text(label, x, y);
     doc.setFont('helvetica','normal');
     doc.setTextColor(30,30,30);
-    const lines = doc.splitTextToSize(String(value || '—'), cellW - 2);
+    const lines = doc.splitTextToSize(String(value||'—'), cellW - 2);
     doc.text(lines, x, y + 4);
     return lines.length * 4 + 6;
   }
 
-  // ── Header ──────────────────────────────────────────────────
+  // Header
   doc.setFillColor(15,17,23);
   doc.rect(0, 0, pageW, 28, 'F');
-  doc.setFontSize(14);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(255,255,255);
+  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
   doc.text('Westminster Fire Department', margin, 11);
-  doc.setFontSize(10);
-  doc.setFont('helvetica','normal');
-  doc.setTextColor(180,180,180);
+  doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(180,180,180);
   doc.text('Paramedic Qualification Program', margin, 18);
-  doc.setFontSize(9);
-  doc.setTextColor(74,124,255);
+  doc.setFontSize(9); doc.setTextColor(74,124,255);
   doc.text(`${isFullHistory ? 'Full Program History' : `Phase ${phaseLabel} Report`}`, margin, 24);
-
-  // Date generated — top right
-  doc.setFontSize(8);
-  doc.setTextColor(180,180,180);
+  doc.setFontSize(8); doc.setTextColor(180,180,180);
   doc.text(`Generated: ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`,
     pageW - margin, 24, { align:'right' });
-
   y = 36;
 
-  // ── Candidate info ──────────────────────────────────────────
-  heading('Candidate Information', 11);
-  y += 2;
+  // Candidate info
+  heading('Candidate Information', 11); y += 2;
   const colW = contentW / 3;
-  const rowH = Math.max(
+  y += Math.max(
     cell('Name', candidate.full_name, margin, colW),
-    cell('Group', CANDIDATE_GROUP_LABELS[candidate.candidate_group] || candidate.candidate_group, margin + colW, colW),
-    cell('Current Phase', `Phase ${candidate.current_phase}`, margin + colW * 2, colW)
+    cell('Group', CANDIDATE_GROUP_LABELS[candidate.candidate_group]||candidate.candidate_group, margin+colW, colW),
+    cell('Current Phase', `Phase ${candidate.current_phase}`, margin+colW*2, colW)
   );
-  y += rowH;
-  const rowH2 = Math.max(
+  y += Math.max(
     cell('Program Start', formatDate(candidate.program_start_date), margin, colW),
-    cell('Hours Logged', `${candidate.qualifying_hours}h`, margin + colW, colW),
-    cell('Attempt', `${candidate.attempt_number} of 3`, margin + colW * 2, colW)
-  );
-  y += rowH2 + 2;
+    cell('Hours Logged', `${candidate.qualifying_hours}h`, margin+colW, colW),
+    cell('Attempt', `${candidate.attempt_number} of 3`, margin+colW*2, colW)
+  ) + 2;
   rule();
 
-  // ── DCAs ────────────────────────────────────────────────────
-  heading(`DCA Records — ${isFullHistory ? 'All Phases' : `Phase ${phaseLabel}`} (${dcas.length} evaluations)`, 11);
+  // DCAs
+  heading(`DCA Records — ${isFullHistory?'All Phases':`Phase ${phaseLabel}`} (${dcas.length})`, 11);
   y += 4;
 
   if (dcas.length === 0) {
-    body('No DCA records for this period.');
-    y += 4;
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+    doc.text('No DCA records for this period.', margin, y); y += 8;
   } else {
     dcas.forEach((d, i) => {
       checkPage(40);
-      doc.setFontSize(9);
-      doc.setFont('helvetica','bold');
-      doc.setTextColor(74,124,255);
-      doc.text(`DCA ${i+1} — ${formatDate(d.incident_date)}${d.incident_number ? '  #' + d.incident_number : ''}`, margin, y);
+      doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(74,124,255);
+      doc.text(`DCA ${i+1} — ${formatDate(d.incident_date)}${d.incident_number?' #'+d.incident_number:''}`, margin, y);
       y += 5;
 
       const colW4 = contentW / 4;
-      const rh = Math.max(
+      y += Math.max(
         cell('Phase', d.phase, margin, colW4),
-        cell('Acuity', (d.acuity||'').toUpperCase(), margin + colW4, colW4),
-        cell('Trigger', (d.trigger_type||'').replace(/_/g,' '), margin + colW4*2, colW4),
-        cell('ePCR', d.epcrlink ? 'Link on file' : '—', margin + colW4*3, colW4)
-      );
-      y += rh + 2;
+        cell('Acuity', (d.acuity||'').toUpperCase(), margin+colW4, colW4),
+        cell('Trigger', (d.trigger_type||'').replace(/_/g,' '), margin+colW4*2, colW4),
+        cell('ePCR', d.epcrlink?'Link on file':'—', margin+colW4*3, colW4)
+      ) + 2;
 
-      // Domain scores table
-      doc.setFontSize(8);
-      doc.setFont('helvetica','bold');
-      doc.setTextColor(100,100,100);
       const domains = [
         ['Patient Assessment', d.d1_demand, d.d1_capability],
         ['Clinical Mgmt ⚠',   d.d2_demand, d.d2_capability],
@@ -398,104 +453,80 @@ function _buildPDF(candidate, phaseLabel, dcas, gaps, isFullHistory) {
         ['Time P / Cadence',  d.d4_demand, d.d4_capability],
         ['CRM',               d.d5_demand, d.d5_capability]
       ];
+      const colD = contentW * 0.45;
+      const colS = (contentW * 0.55) / 2;
 
-      const colDomain = contentW * 0.45;
-      const colScore  = (contentW * 0.55) / 2;
-
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(100,100,100);
       doc.text('Domain', margin, y);
-      doc.text('Demand', margin + colDomain, y);
-      doc.text('Capability', margin + colDomain + colScore, y);
+      doc.text('Demand', margin+colD, y);
+      doc.text('Capability', margin+colD+colS, y);
       y += 4;
-      doc.setDrawColor(220,220,220);
-      doc.line(margin, y, pageW - margin, y);
-      y += 3;
+      doc.setDrawColor(220,220,220); doc.line(margin, y, pageW-margin, y); y += 3;
 
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(30,30,30);
+      doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
       domains.forEach(([name, dem, cap]) => {
         doc.text(name, margin, y);
-        doc.text(String(dem||'—'), margin + colDomain, y);
-        const capColor = dem && cap && dem > cap ? [239,68,68] : [30,30,30];
-        doc.setTextColor(...capColor);
-        doc.text(String(cap||'—'), margin + colDomain + colScore, y);
+        doc.text(String(dem||'—'), margin+colD, y);
+        const isGap = dem && cap && dem > cap;
+        doc.setTextColor(...(isGap ? [239,68,68] : [30,30,30]));
+        doc.text(String(cap||'—'), margin+colD+colS, y);
         doc.setTextColor(30,30,30);
         y += 5;
       });
 
-      // Doc quality
-      const docFields = [
-        d.doc_accuracy, d.doc_completeness, d.doc_timeliness, d.doc_consistency
-      ].map(v => v || '—').join(' / ');
-      doc.setFontSize(8);
-      doc.setTextColor(100,100,100);
-      doc.text(`Documentation: ${docFields}`, margin, y);
+      doc.setFontSize(8); doc.setTextColor(100,100,100);
+      doc.text(`Documentation: ${[d.doc_accuracy,d.doc_completeness,d.doc_timeliness,d.doc_consistency].map(v=>v||'—').join(' / ')}`, margin, y);
       y += 6;
-
-      doc.setDrawColor(235,235,235);
-      doc.line(margin, y, pageW - margin, y);
-      y += 4;
+      doc.setDrawColor(235,235,235); doc.line(margin, y, pageW-margin, y); y += 4;
     });
   }
 
   rule();
 
-  // ── Gaps ────────────────────────────────────────────────────
-  heading(`Capability Gaps — ${isFullHistory ? 'All Phases' : `Phase ${phaseLabel}`} (${gaps.length} total)`, 11);
+  // Gaps
+  heading(`Capability Gaps — ${isFullHistory?'All Phases':`Phase ${phaseLabel}`} (${gaps.length})`, 11);
   y += 4;
 
   if (gaps.length === 0) {
-    body('No capability gaps for this period.');
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+    doc.text('No capability gaps for this period.', margin, y); y += 8;
   } else {
     gaps.forEach((g, i) => {
       checkPage(24);
-      doc.setFontSize(9);
-      doc.setFont('helvetica','bold');
-      const gapColor = g.is_critical ? [239,68,68] : [74,124,255];
-      doc.setTextColor(...gapColor);
-      doc.text(`Gap ${i+1} — ${g.domain_name}${g.is_critical ? ' (Critical Domain)' : ''}`, margin, y);
-      doc.setTextColor(g.status === 'open' ? 239 : 62, g.status === 'open' ? 68 : 207, g.status === 'open' ? 68 : 142);
-      doc.text(g.status.toUpperCase(), pageW - margin, y, { align:'right' });
+      doc.setFontSize(9); doc.setFont('helvetica','bold');
+      doc.setTextColor(...(g.is_critical ? [239,68,68] : [74,124,255]));
+      doc.text(`Gap ${i+1} — ${g.domain_name}${g.is_critical?' (Critical Domain)':''}`, margin, y);
+      doc.setTextColor(...(g.status==='open' ? [239,68,68] : [62,207,142]));
+      doc.text(g.status.toUpperCase(), pageW-margin, y, { align:'right' });
       y += 5;
-
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(60,60,60);
-      const descLines = doc.splitTextToSize(g.gap_description || '—', contentW);
-      doc.text(descLines, margin, y);
-      y += descLines.length * 4 + 2;
-
-      if (g.status === 'closed' && g.closure_notes) {
+      doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+      const descLines = doc.splitTextToSize(g.gap_description||'—', contentW);
+      doc.text(descLines, margin, y); y += descLines.length*4+2;
+      if (g.status==='closed' && g.closure_notes) {
         doc.setTextColor(62,207,142);
-        const closeLines = doc.splitTextToSize(`Closure: ${g.closure_notes}`, contentW);
-        doc.text(closeLines, margin, y);
-        y += closeLines.length * 4 + 2;
+        const cl = doc.splitTextToSize(`Closure: ${g.closure_notes}`, contentW);
+        doc.text(cl, margin, y); y += cl.length*4+2;
       }
       y += 2;
     });
   }
 
-  // ── Footer on each page ─────────────────────────────────────
+  // Footer
   const pageCount = doc.internal.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setFontSize(7);
-    doc.setTextColor(150,150,150);
+    doc.setFontSize(7); doc.setTextColor(150,150,150);
     doc.text(`WFD Paramedic Qualification Program  •  ${candidate.full_name}  •  Page ${p} of ${pageCount}`,
-      pageW / 2, pageH - 8, { align:'center' });
+      pageW/2, pageH-8, { align:'center' });
   }
 
-  const filename = isFullHistory
-    ? exportFilename(candidate, 'Full', 'pdf')
-    : exportFilename(candidate, phaseLabel, 'pdf');
-  doc.save(filename);
+  doc.save(isFullHistory ? exportFilename(candidate,'Full','pdf') : exportFilename(candidate,phaseLabel,'pdf'));
 }
 
-// ── File download helper ───────────────────────────────────────
 function downloadFile(content, filename, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href     = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
