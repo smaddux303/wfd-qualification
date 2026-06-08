@@ -56,6 +56,7 @@ async function renderPhaseLog() {
   // Fix #2 — FTIs can log hours for their assigned candidate
   const isAssignedFti = c.assigned_fti_id === currentProfile?.id;
   const canLogHours   = isAssignedFti || isManager();
+  const canExport     = isAssignedFti || isManager();
 
   const hoursForm = canLogHours ? `
     <div class="card">
@@ -86,7 +87,7 @@ async function renderPhaseLog() {
       </div>
     </div>` : '';
 
-  const exportButtons = isManager() ? `
+  const exportButtons = canExport ? `
     <div class="card">
       <div class="card-title">Export phase data</div>
       <p class="text-muted mb-2">Export data for the phase being completed. Select the phase then choose your format.</p>
