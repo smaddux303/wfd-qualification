@@ -136,8 +136,9 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
   const criticalOpen = gaps.filter(g => g.status === 'open' && g.is_critical).length;
   const totalDcas    = dcas.length;
 
-  // Change #13 — full history export button for managers
-  const exportBtn = isManager()
+  // Full history export — assigned FTI and managers
+  const isAssignedFti = selectedCandidate?.assigned_fti_id === currentProfile?.id;
+  const exportBtn = (isAssignedFti || isManager())
     ? `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="exportFullHistoryCSV()">⬇ Full history CSV</button>
         <button class="btn btn-sm" onclick="exportFullHistoryPDF()">⬇ Full history PDF</button>
