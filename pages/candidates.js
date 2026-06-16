@@ -66,7 +66,7 @@ async function renderCandidateList() {
       *,
       fti:assigned_fti_id(full_name),
       sam:assigned_sam_id(full_name)
-    `).order('full_name');
+    `);
     if (!error) { candidates = data; break; }
     fetchError = error;
     if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
@@ -80,6 +80,9 @@ async function renderCandidateList() {
     </div>`);
     return;
   }
+
+  // Sort by last name, first name
+  candidates = (candidates || []).sort(lastNameSort);
 
   if (!candidates || candidates.length === 0) {
     setMain(`<div class="page">
