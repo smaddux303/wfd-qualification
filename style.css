@@ -340,6 +340,16 @@ tr.clickable:hover td { background: var(--surface2); cursor: pointer; }
 .alias-name { font-weight: 500; font-size: 14px; }
 .alias-score { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
 
+.sidebar-version {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
 /* ── MISC ───────────────────────────────────────────────────── */
 .section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
 .page-header   { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
