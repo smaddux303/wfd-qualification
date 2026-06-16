@@ -161,6 +161,8 @@ function showApp() {
 // ── Navigation ─────────────────────────────────────────────────
 function buildNav() {
   const role = currentProfile?.role;
+  const actingSam = currentProfile?.role === 'fti' && currentProfile?.acting_sam === true;
+
   const items = [
     { key: 'candidates', label: 'Candidates', roles: ['fti','sam_officer','admin'],
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
@@ -170,7 +172,8 @@ function buildNav() {
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>` },
   ];
 
-  const visible = items.filter(i => i.roles.includes(role));
+  // Acting SAM FTIs get the Admin tab too, even though their base role is fti
+  const visible = items.filter(i => i.roles.includes(role) || (i.key === 'admin' && actingSam));
 
   document.getElementById('sidebar-nav').innerHTML = visible.map(i =>
     `<button class="nav-item" id="nav-${i.key}" onclick="navTo('${i.key}')">
