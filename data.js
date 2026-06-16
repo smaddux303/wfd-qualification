@@ -83,8 +83,11 @@ const CAPSTONE_CHECKS = [
 ];
 
 // Change #11 — unified manager check (SAM Officer and Admin have identical rights)
+// Updated — also grants manager rights to FTIs flagged as acting SAM Officers
 function isManager() {
-  return ['sam_officer','admin'].includes(currentProfile?.role);
+  if (['sam_officer','admin'].includes(currentProfile?.role)) return true;
+  if (currentProfile?.role === 'fti' && currentProfile?.acting_sam === true) return true;
+  return false;
 }
 
 // Phase labels for display
