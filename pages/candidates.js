@@ -20,7 +20,7 @@ async function getCandidateData(candidateId) {
       .eq('candidate_id', candidateId)
       .maybeSingle(),
     db.from('dcas')
-      .select('*')
+      .select('*, fti:fti_id(full_name)')
       .eq('candidate_id', candidateId)
       .order('incident_date'),
     // Change #15 — join dca to get epcrlink for gap cards
@@ -262,6 +262,7 @@ function renderDcaHistory(dcas) {
           <td>${formatDate(d.incident_date)}</td>
           <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${d.incident_number||'—'}</td>
           <td>${epcrlinkHTML(d.epcrlink)}</td>
+          <td style="font-size:12px;color:var(--muted)">${d.fti?.full_name||'—'}</td>
           <td>${phaseBadge(d.phase)}</td>
           <td>${acuityBadge(d.acuity)}</td>
           <td>${scoreDisplay(d.d1_capability,'cap')}</td>
@@ -280,7 +281,7 @@ function renderDcaHistory(dcas) {
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Incident</th><th>ePCR</th><th>Phase</th><th>Acuity</th>
+            <th>Date</th><th>Incident</th><th>ePCR</th><th>FTI</th><th>Phase</th><th>Acuity</th>
             <th>D1</th><th>D2 ⚠</th><th>D3 ⚠</th><th>D4</th><th>D5</th>
           </tr></thead>
           <tbody>${rows}</tbody>
