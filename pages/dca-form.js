@@ -249,8 +249,10 @@ function renderDcaForm() {
           <input type="text" id="dca-incident" placeholder="e.g. 2025-00412" oninput="saveDraft()" />
         </div>
         <div class="form-group full">
-          <label>ePCR / ImageTrend link</label>
-          <input type="text" id="dca-epcrlink" placeholder="https://…" oninput="saveDraft()" />
+          <label>ePCR / ImageTrend link
+            <span id="epcr-required-flag" style="display:none;color:var(--red)">(required — gap identified)</span>
+          </label>
+          <input type="text" id="dca-epcrlink" placeholder="https://…" oninput="saveDraft();clearEpcrRequiredStyle()" />
         </div>
         <div class="form-group">
           <label>Acuity *</label>
@@ -408,6 +410,24 @@ function selectScore(domain, type, value) {
   }
 
   checkPhaseTransitionWarning();
+  checkEpcrRequirement();
+}
+
+// Live check — show/hide the "required" flag on the ePCR field as scores change
+function checkEpcrRequirement() {
+  const flag = document.getElementById('epcr-required-flag');
+  if (!flag) return;
+  const hasAnyGap = ['d1','d2','d3','d4','d5'].some(dn => {
+    const dem = dcaScores[dn]?.demand;
+    const cap = dcaScores[dn]?.capability;
+    return dem && cap && dem > cap;
+  });
+  flag.style.display = hasAnyGap ? 'inline' : 'none';
+}
+
+function clearEpcrRequiredStyle() {
+  const el = document.getElementById('dca-epcrlink');
+  if (el) el.style.borderColor = '';
 }
 
 function onTriggerChange() {
@@ -472,6 +492,22 @@ async function submitDca() {
       errEl.scrollIntoView({ behavior:'smooth' });
       return;
     }
+  }
+
+  // Change — ePCR link required when any domain shows a gap (demand > capability)
+  const hasAnyGap = ['d1','d2','d3','d4','d5'].some(dn => {
+    const dem = dcaScores[dn]?.demand;
+    const cap = dcaScores[dn]?.capability;
+    return dem && cap && dem > cap;
+  });
+  const epcrLinkValue = document.getElementById('dca-epcrlink')?.value?.trim();
+
+  if (hasAnyGap && !epcrLinkValue) {
+    errEl.textContent = 'A capability gap was identified. The ePCR / ImageTrend link is required to document the source incident before this DCA can be submitted.';
+    errEl.style.display = 'block';
+    document.getElementById('dca-epcrlink').scrollIntoView({ behavior:'smooth' });
+    document.getElementById('dca-epcrlink').style.borderColor = 'var(--red)';
+    return;
   }
 
   const btn = document.getElementById('submit-dca-btn');
