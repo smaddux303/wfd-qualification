@@ -1,5 +1,15 @@
 // WFD App — Domain data, constants, and lookup tables
 // Updated per WFD Paramedic Qualification Manual v10.1
+//
+// APP VERSION HISTORY:
+// v1.0.0 — Initial build: DCA form, candidates, gaps, radar chart, phase log,
+//          SAM conferences, capstone, admin panel
+// v1.1.0 — Manual v10.1 update: Domain 4 Cadence capability, capstone elements
+//          simplified, two-extension structure, SOG→Directive, NREMT section
+// v1.2.0 — User feedback round: hours logging, stability fixes, color swap,
+//          ePCR repositioning, anonymization system (code + alias), auto-save
+// v1.3.0 — FTI column on DCA history, ePCR required on gap, acting SAM Officer
+//          flag, last-name sorting throughout, version indicator added
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
