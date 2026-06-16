@@ -28,10 +28,13 @@ async function renderAdmin() {
   function profileRow(p) {
     return `<tr>
       <td style="font-weight:500">${p.full_name}</td>
-      <td><span style="font-family:var(--mono);font-size:11px;color:var(--accent)">${p.role.replace('_',' ')}</span></td>
+      <td>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent)">${p.role.replace('_',' ')}</span>
+        ${p.acting_sam ? '<span style="margin-left:6px;font-size:10px;font-family:var(--mono);color:var(--amber);border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);padding:1px 6px;border-radius:20px">Acting SAM</span>' : ''}
+      </td>
       <td style="font-size:12px;color:var(--muted)">${p.shift||'—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-sm" onclick="editProfile('${p.id}','${p.full_name}','${p.role}','${p.shift||''}')">Edit</button>
+        <button class="btn btn-sm" onclick="editProfile('${p.id}','${p.full_name}','${p.role}','${p.shift||''}',${p.acting_sam===true})">Edit</button>
         <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteProfile('${p.id}','${p.full_name}')">Delete</button>
       </td>
     </tr>`;
@@ -143,6 +146,13 @@ async function renderAdmin() {
           <label>Shift</label>
           <select id="new-prof-shift">
             ${shiftOptions('')}
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Acting SAM Officer</label>
+          <select id="new-prof-acting-sam">
+            <option value="false">No</option>
+            <option value="true">Yes — grant SAM-level permissions (only relevant if role is FTI)</option>
           </select>
         </div>
       </div>
@@ -301,6 +311,13 @@ async function renderAdmin() {
             <option value="C">C</option>
           </select>
         </div>
+        <div class="form-group full">
+          <label>Acting SAM Officer</label>
+          <select id="edit-prof-acting-sam">
+            <option value="false">No</option>
+            <option value="true">Yes — grant SAM-level permissions (only relevant if role is FTI)</option>
+          </select>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-sm" onclick="document.getElementById('edit-profile-panel').style.display='none'">Cancel</button>
@@ -370,7 +387,8 @@ async function addProfile() {
     id,
     full_name: name,
     role,
-    shift: document.getElementById('new-prof-shift').value || null
+    shift: document.getElementById('new-prof-shift').value || null,
+    acting_sam: document.getElementById('new-prof-acting-sam').value === 'true'
   });
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
@@ -501,11 +519,12 @@ async function saveEditCandidate() {
 }
 
 // ── Edit profile ───────────────────────────────────────────────
-function editProfile(id, name, role, shift) {
-  document.getElementById('edit-prof-id').value    = id;
-  document.getElementById('edit-prof-name').value  = name;
-  document.getElementById('edit-prof-role').value  = role;
-  document.getElementById('edit-prof-shift').value = shift;
+function editProfile(id, name, role, shift, actingSam) {
+  document.getElementById('edit-prof-id').value         = id;
+  document.getElementById('edit-prof-name').value       = name;
+  document.getElementById('edit-prof-role').value       = role;
+  document.getElementById('edit-prof-shift').value      = shift;
+  document.getElementById('edit-prof-acting-sam').value = actingSam ? 'true' : 'false';
   document.getElementById('edit-profile-panel').style.display = 'block';
   document.getElementById('edit-profile-panel').scrollIntoView({ behavior:'smooth' });
 }
@@ -513,9 +532,10 @@ function editProfile(id, name, role, shift) {
 async function saveEditProfile() {
   const id = document.getElementById('edit-prof-id').value;
   const { error } = await db.from('profiles').update({
-    full_name: document.getElementById('edit-prof-name').value,
-    role:      document.getElementById('edit-prof-role').value,
-    shift:     document.getElementById('edit-prof-shift').value || null
+    full_name:  document.getElementById('edit-prof-name').value,
+    role:       document.getElementById('edit-prof-role').value,
+    shift:      document.getElementById('edit-prof-shift').value || null,
+    acting_sam: document.getElementById('edit-prof-acting-sam').value === 'true'
   }).eq('id', id);
 
   if (error) { alert(error.message); return; }
