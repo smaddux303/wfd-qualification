@@ -10,12 +10,12 @@ async function renderAdmin() {
 
   // Fetch candidates and profiles simultaneously
   const [candRes, profRes] = await Promise.all([
-    db.from('candidates').select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)').order('full_name'),
-    db.from('profiles').select('*').order('full_name')
+    db.from('candidates').select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)'),
+    db.from('profiles').select('*')
   ]);
 
-  const candidates = candRes.data || [];
-  const profiles   = profRes.data || [];
+  const candidates = (candRes.data || []).sort(lastNameSort);
+  const profiles    = (profRes.data || []).sort(lastNameSort);
   const ftis = profiles.filter(p => p.role === 'fti');
   const sams = profiles.filter(p => p.role === 'sam_officer');
 
