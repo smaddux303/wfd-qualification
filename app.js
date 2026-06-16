@@ -323,7 +323,17 @@ async function fetchProfiles(role) {
   return data || [];
 }
 
-// ── Filename helper for exports ────────────────────────────────
+// ── Sort helper — alphabetize by last name, then first name ───
+function lastNameSort(a, b) {
+  const lastFirst = (fullName) => {
+    const parts = (fullName || '').trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const last  = parts[parts.length - 1];
+    const first = parts.slice(0, -1).join(' ');
+    return `${last} ${first}`.toLowerCase();
+  };
+  return lastFirst(a.full_name).localeCompare(lastFirst(b.full_name));
+}
 function exportFilename(candidate, phase, ext) {
   const parts = (candidate.full_name || 'Unknown').split(' ');
   const last  = parts[parts.length - 1];
