@@ -32,7 +32,7 @@ async function renderConferenceList() {
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${c.full_name} — SAM Conferences</h1>
+    <h1 class="section-title">${displayName(c)} — SAM Conferences</h1>
     ${candidateTabs('conferences')}
 
     ${alertHTML('info', 'All three SAM Conference records are required for program completion. Conferences must include the Candidate, FTI, and SAM Officer.')}
@@ -69,10 +69,10 @@ async function renderConferenceForm(type) {
   const title = CONFERENCE_TYPES.find(ct => ct.value === type)?.label || type;
 
   function ftiOptions() {
-    return ftis.map(f => `<option value="${f.id}" ${d.fti_id===f.id?'selected':''}>${f.full_name}</option>`).join('');
+    return ftis.map(f => `<option value="${f.id}" ${d.fti_id===f.id?'selected':''}>${displayName(f)}</option>`).join('');
   }
   function samOptions() {
-    return sams.map(s => `<option value="${s.id}" ${d.sam_id===s.id?'selected':''}>${s.full_name}</option>`).join('');
+    return sams.map(s => `<option value="${s.id}" ${d.sam_id===s.id?'selected':''}>${displayName(s)}</option>`).join('');
   }
 
   // Shared header fields
@@ -315,7 +315,7 @@ async function renderConferenceForm(type) {
 
   setMain(`<div class="page">
     ${backToCandidate('SAM Conferences')}
-    <h1 class="section-title">${c.full_name} — ${title}</h1>
+    <h1 class="section-title">${displayName(c)} — ${title}</h1>
     ${candidateTabs('conferences')}
 
     <div id="conf-error"   class="alert alert-error"   style="display:none"></div>
