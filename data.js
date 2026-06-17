@@ -10,6 +10,8 @@
 //          ePCR repositioning, anonymization system (code + alias), auto-save
 // v1.3.0 — FTI column on DCA history, ePCR required on gap, acting SAM Officer
 //          flag, last-name sorting throughout, version indicator added
+// v1.3.1 — Replaced full_name parsing with explicit first_name/last_name
+//          fields to correctly handle compound surnames (e.g. "Van Marter")
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
