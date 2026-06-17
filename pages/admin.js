@@ -10,7 +10,7 @@ async function renderAdmin() {
 
   // Fetch candidates and profiles simultaneously
   const [candRes, profRes] = await Promise.all([
-    db.from('candidates').select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)'),
+    db.from('candidates').select('*, fti:assigned_fti_id(first_name,last_name), sam:assigned_sam_id(first_name,last_name)'),
     db.from('profiles').select('*')
   ]);
 
@@ -27,15 +27,15 @@ async function renderAdmin() {
 
   function profileRow(p) {
     return `<tr>
-      <td style="font-weight:500">${p.full_name}</td>
+      <td style="font-weight:500">${displayName(p)}</td>
       <td>
         <span style="font-family:var(--mono);font-size:11px;color:var(--accent)">${p.role.replace('_',' ')}</span>
         ${p.acting_sam ? '<span style="margin-left:6px;font-size:10px;font-family:var(--mono);color:var(--amber);border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);padding:1px 6px;border-radius:20px">Acting SAM</span>' : ''}
       </td>
       <td style="font-size:12px;color:var(--muted)">${p.shift||'—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-sm" onclick="editProfile('${p.id}','${p.full_name}','${p.role}','${p.shift||''}',${p.acting_sam===true})">Edit</button>
-        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteProfile('${p.id}','${p.full_name}')">Delete</button>
+        <button class="btn btn-sm" onclick="editProfile('${p.id}','${p.first_name||''}','${p.last_name||''}','${p.role}','${p.shift||''}',${p.acting_sam===true})">Edit</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteProfile('${p.id}','${displayName(p)}')">Delete</button>
       </td>
     </tr>`;
   }
@@ -43,22 +43,22 @@ async function renderAdmin() {
   function candidateRow(c) {
     return `<tr>
       <td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${c.candidate_code||'—'}</td>
-      <td style="font-weight:500">${c.full_name}</td>
+      <td style="font-weight:500">${displayName(c)}</td>
       <td style="font-size:12px;color:var(--muted)">${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</td>
       <td>${phaseBadge(c.current_phase)}</td>
-      <td style="font-size:12px;color:var(--muted)">${c.fti?.full_name||'—'}</td>
-      <td style="font-size:12px;color:var(--muted)">${c.sam?.full_name||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.fti ? displayName(c.fti) : '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.sam ? displayName(c.sam) : '—'}</td>
       <td><span style="font-family:var(--mono);font-size:11px;color:var(--green)">${c.program_status}</span></td>
       <td style="font-family:var(--mono);font-size:12px">${c.qualifying_hours}h</td>
       <td style="white-space:nowrap">
         <button class="btn btn-sm" onclick="editCandidate('${c.id}')">Edit</button>
-        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteCandidate('${c.id}','${c.full_name}')">Delete</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteCandidate('${c.id}','${displayName(c)}')">Delete</button>
       </td>
     </tr>`;
   }
 
   setMain(`<div class="page">
-    <h1 class="section-title">Admin Panel <span style="font-size:11px;font-family:var(--mono);color:var(--muted);font-weight:400;opacity:0.6">v1.3.0</span></h1>
+    <h1 class="section-title">Admin Panel <span style="font-size:11px;font-family:var(--mono);color:var(--muted);font-weight:400;opacity:0.6">v1.3.1</span></h1>
 
     <div id="admin-error"   class="alert alert-error"   style="display:none"></div>
     <div id="admin-success" class="alert alert-success" style="display:none"></div>
@@ -68,8 +68,12 @@ async function renderAdmin() {
       <div class="card-title">Add new candidate</div>
       <div class="form-grid">
         <div class="form-group">
-          <label>Full name *</label>
-          <input type="text" id="new-cand-name" placeholder="Jane Smith" />
+          <label>First name *</label>
+          <input type="text" id="new-cand-first" placeholder="Jane" />
+        </div>
+        <div class="form-group">
+          <label>Last name *</label>
+          <input type="text" id="new-cand-last" placeholder="Van Marter" />
         </div>
         <div class="form-group">
           <label>Candidate group *</label>
@@ -83,14 +87,14 @@ async function renderAdmin() {
           <label>Assign FTI</label>
           <select id="new-cand-fti">
             <option value="">Select…</option>
-            ${ftis.map(f=>`<option value="${f.id}">${f.full_name}</option>`).join('')}
+            ${ftis.map(f=>`<option value="${f.id}">${displayName(f)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Assign SAM Officer</label>
           <select id="new-cand-sam">
             <option value="">Select…</option>
-            ${sams.map(s=>`<option value="${s.id}">${s.full_name}</option>`).join('')}
+            ${sams.map(s=>`<option value="${s.id}">${displayName(s)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -131,8 +135,12 @@ async function renderAdmin() {
           <input type="text" id="new-prof-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="font-family:var(--mono);font-size:12px" />
         </div>
         <div class="form-group">
-          <label>Full name *</label>
-          <input type="text" id="new-prof-name" placeholder="Jane Smith" />
+          <label>First name *</label>
+          <input type="text" id="new-prof-first" placeholder="Jane" />
+        </div>
+        <div class="form-group">
+          <label>Last name *</label>
+          <input type="text" id="new-prof-last" placeholder="Van Marter" />
         </div>
         <div class="form-group">
           <label>Role *</label>
@@ -167,7 +175,7 @@ async function renderAdmin() {
           <label>Candidate</label>
           <select id="hours-cand-id">
             <option value="">Select…</option>
-            ${(candidates||[]).map(c=>`<option value="${c.id}">${c.full_name} (${c.qualifying_hours}h)</option>`).join('')}
+            ${(candidates||[]).map(c=>`<option value="${c.id}">${displayName(c)} (${c.qualifying_hours}h)</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -187,7 +195,7 @@ async function renderAdmin() {
           <label>Candidate</label>
           <select id="del-dca-cand" onchange="loadDcasForDelete()">
             <option value="">Select candidate…</option>
-            ${(candidates||[]).map(c=>`<option value="${c.id}">${c.full_name}</option>`).join('')}
+            ${(candidates||[]).map(c=>`<option value="${c.id}">${displayName(c)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -236,21 +244,25 @@ async function renderAdmin() {
       <div class="form-grid">
         <input type="hidden" id="edit-cand-id" />
         <div class="form-group">
-          <label>Full name</label>
-          <input type="text" id="edit-cand-name" />
+          <label>First name</label>
+          <input type="text" id="edit-cand-first" />
+        </div>
+        <div class="form-group">
+          <label>Last name</label>
+          <input type="text" id="edit-cand-last" />
         </div>
         <div class="form-group">
           <label>Assign FTI</label>
           <select id="edit-cand-fti">
             <option value="">None</option>
-            ${ftis.map(f=>`<option value="${f.id}">${f.full_name}</option>`).join('')}
+            ${ftis.map(f=>`<option value="${f.id}">${displayName(f)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Assign SAM Officer</label>
           <select id="edit-cand-sam">
             <option value="">None</option>
-            ${sams.map(s=>`<option value="${s.id}">${s.full_name}</option>`).join('')}
+            ${sams.map(s=>`<option value="${s.id}">${displayName(s)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -291,8 +303,12 @@ async function renderAdmin() {
       <div class="form-grid">
         <input type="hidden" id="edit-prof-id" />
         <div class="form-group">
-          <label>Full name</label>
-          <input type="text" id="edit-prof-name" />
+          <label>First name</label>
+          <input type="text" id="edit-prof-first" />
+        </div>
+        <div class="form-group">
+          <label>Last name</label>
+          <input type="text" id="edit-prof-last" />
         </div>
         <div class="form-group">
           <label>Role</label>
@@ -333,12 +349,13 @@ async function addCandidate() {
   const sucEl = document.getElementById('admin-success');
   errEl.style.display = 'none'; sucEl.style.display = 'none';
 
-  const name  = document.getElementById('new-cand-name').value.trim();
-  const group = document.getElementById('new-cand-group').value;
-  const start = document.getElementById('new-cand-start').value;
+  const firstName = document.getElementById('new-cand-first').value.trim();
+  const lastName  = document.getElementById('new-cand-last').value.trim();
+  const group     = document.getElementById('new-cand-group').value;
+  const start     = document.getElementById('new-cand-start').value;
 
-  if (!name || !group || !start) {
-    errEl.textContent = 'Name, candidate group, and program start date are required.';
+  if (!firstName || !lastName || !group || !start) {
+    errEl.textContent = 'First name, last name, candidate group, and program start date are required.';
     errEl.style.display = 'block';
     return;
   }
@@ -347,7 +364,8 @@ async function addCandidate() {
   const candidateCode = await generateCandidateCode();
 
   const { error } = await db.from('candidates').insert({
-    full_name:          name,
+    first_name:         firstName,
+    last_name:          lastName,
     candidate_code:     candidateCode,
     candidate_group:    group,
     assigned_fti_id:    document.getElementById('new-cand-fti').value || null,
@@ -362,7 +380,7 @@ async function addCandidate() {
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
 
-  sucEl.textContent = `Candidate "${name}" added with code ${candidateCode}. Use Alias Lookup to assign their NFL alias.`;
+  sucEl.textContent = `Candidate "${firstName} ${lastName}" added with code ${candidateCode}. Use Alias Lookup to assign their NFL alias.`;
   sucEl.style.display = 'block';
   setTimeout(() => renderAdmin(), 1400);
 }
@@ -373,26 +391,28 @@ async function addProfile() {
   const sucEl = document.getElementById('admin-success');
   errEl.style.display = 'none'; sucEl.style.display = 'none';
 
-  const id   = document.getElementById('new-prof-id').value.trim();
-  const name = document.getElementById('new-prof-name').value.trim();
-  const role = document.getElementById('new-prof-role').value;
+  const id        = document.getElementById('new-prof-id').value.trim();
+  const firstName = document.getElementById('new-prof-first').value.trim();
+  const lastName  = document.getElementById('new-prof-last').value.trim();
+  const role      = document.getElementById('new-prof-role').value;
 
-  if (!id || !name || !role) {
-    errEl.textContent = 'UUID, full name, and role are required.';
+  if (!id || !firstName || !lastName || !role) {
+    errEl.textContent = 'UUID, first name, last name, and role are required.';
     errEl.style.display = 'block';
     return;
   }
 
   const { error } = await db.from('profiles').insert({
     id,
-    full_name: name,
+    first_name: firstName,
+    last_name:  lastName,
     role,
     shift: document.getElementById('new-prof-shift').value || null,
     acting_sam: document.getElementById('new-prof-acting-sam').value === 'true'
   });
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
-  sucEl.textContent = `Profile for "${name}" added.`;
+  sucEl.textContent = `Profile for "${firstName} ${lastName}" added.`;
   sucEl.style.display = 'block';
   setTimeout(() => renderAdmin(), 1200);
 }
@@ -490,7 +510,8 @@ async function deleteProfile(id, name) {
 async function editCandidate(id) {
   const { data: c } = await db.from('candidates').select('*').eq('id', id).single();
   document.getElementById('edit-cand-id').value               = c.id;
-  document.getElementById('edit-cand-name').value             = c.full_name;
+  document.getElementById('edit-cand-first').value            = c.first_name || '';
+  document.getElementById('edit-cand-last').value             = c.last_name || '';
   document.getElementById('edit-cand-fti').value              = c.assigned_fti_id || '';
   document.getElementById('edit-cand-sam').value              = c.assigned_sam_id || '';
   document.getElementById('edit-cand-status').value           = c.program_status;
@@ -504,7 +525,8 @@ async function editCandidate(id) {
 async function saveEditCandidate() {
   const id = document.getElementById('edit-cand-id').value;
   const { error } = await db.from('candidates').update({
-    full_name:                document.getElementById('edit-cand-name').value,
+    first_name:                document.getElementById('edit-cand-first').value,
+    last_name:                 document.getElementById('edit-cand-last').value,
     assigned_fti_id:          document.getElementById('edit-cand-fti').value || null,
     assigned_sam_id:          document.getElementById('edit-cand-sam').value || null,
     program_status:           document.getElementById('edit-cand-status').value,
@@ -519,9 +541,10 @@ async function saveEditCandidate() {
 }
 
 // ── Edit profile ───────────────────────────────────────────────
-function editProfile(id, name, role, shift, actingSam) {
+function editProfile(id, firstName, lastName, role, shift, actingSam) {
   document.getElementById('edit-prof-id').value         = id;
-  document.getElementById('edit-prof-name').value       = name;
+  document.getElementById('edit-prof-first').value      = firstName;
+  document.getElementById('edit-prof-last').value       = lastName;
   document.getElementById('edit-prof-role').value       = role;
   document.getElementById('edit-prof-shift').value      = shift;
   document.getElementById('edit-prof-acting-sam').value = actingSam ? 'true' : 'false';
@@ -532,7 +555,8 @@ function editProfile(id, name, role, shift, actingSam) {
 async function saveEditProfile() {
   const id = document.getElementById('edit-prof-id').value;
   const { error } = await db.from('profiles').update({
-    full_name:  document.getElementById('edit-prof-name').value,
+    first_name: document.getElementById('edit-prof-first').value,
+    last_name:  document.getElementById('edit-prof-last').value,
     role:       document.getElementById('edit-prof-role').value,
     shift:      document.getElementById('edit-prof-shift').value || null,
     acting_sam: document.getElementById('edit-prof-acting-sam').value === 'true'
