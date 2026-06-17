@@ -152,7 +152,7 @@ function showApp() {
   document.getElementById('forgot-screen').style.display = 'none';
   document.getElementById('reset-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('sidebar-name').textContent = currentProfile?.full_name || '';
+  document.getElementById('sidebar-name').textContent = displayName(currentProfile);
   document.getElementById('sidebar-role').textContent = (currentProfile?.role || '').replace('_',' ');
   buildNav();
   renderCandidateList();
@@ -317,27 +317,34 @@ async function fetchGaps(candidateId) {
 }
 
 async function fetchProfiles(role) {
-  let query = db.from('profiles').select('*').order('full_name');
+  let query = db.from('profiles').select('*');
   if (role) query = query.eq('role', role);
   const { data } = await query;
-  return data || [];
+  return (data || []).sort(lastNameSort);
 }
 
 // ── Sort helper — alphabetize by last name, then first name ───
+// Uses explicit last_name/first_name fields (not parsed from full_name)
+// to correctly handle compound surnames like "Van Marter" or "De La Cruz"
 function lastNameSort(a, b) {
-  const lastFirst = (fullName) => {
-    const parts = (fullName || '').trim().split(/\s+/);
-    if (parts.length === 1) return parts[0];
-    const last  = parts[parts.length - 1];
-    const first = parts.slice(0, -1).join(' ');
-    return `${last} ${first}`.toLowerCase();
-  };
-  return lastFirst(a.full_name).localeCompare(lastFirst(b.full_name));
+  const key = (rec) => `${(rec.last_name||'').toLowerCase()} ${(rec.first_name||'').toLowerCase()}`;
+  return key(a).localeCompare(key(b));
 }
+
+// Display helper — combines first/last into a display name
+function displayName(rec) {
+  if (!rec) return '';
+  if (rec.first_name || rec.last_name) {
+    return `${rec.first_name||''} ${rec.last_name||''}`.trim();
+  }
+  return rec.full_name || '';
+}
+
+// Note: exportFilenameAnon (in phase-transitions.js) is the active filename
+// generator and uses candidate_code, not name, so it's unaffected by this change.
 function exportFilename(candidate, phase, ext) {
-  const parts = (candidate.full_name || 'Unknown').split(' ');
-  const last  = parts[parts.length - 1];
-  const first = parts[0];
+  const last  = candidate.last_name  || (candidate.full_name||'Unknown').split(' ').pop();
+  const first = candidate.first_name || (candidate.full_name||'Unknown').split(' ')[0];
   const date  = new Date().toISOString().split('T')[0];
   return `${last}_${first}_Phase${phase}_${date}.${ext}`;
 }
