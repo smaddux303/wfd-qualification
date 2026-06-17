@@ -12,6 +12,11 @@
 //          flag, last-name sorting throughout, version indicator added
 // v1.3.1 — Replaced full_name parsing with explicit first_name/last_name
 //          fields to correctly handle compound surnames (e.g. "Van Marter")
+// v1.4.0 — Capstone renamed to Independent Practice Evaluation (IPE).
+//          Section 3.7 exit documentation check required before a candidate
+//          can be marked Qualified. Confirmation step added to prevent
+//          accidental qualification. New Program History view for qualified
+//          candidates, with full-record export and admin-only reversal.
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
