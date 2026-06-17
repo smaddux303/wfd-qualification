@@ -47,7 +47,7 @@ async function renderGapList() {
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${c.full_name} — Capability Gaps</h1>
+    <h1 class="section-title">${displayName(c)} — Capability Gaps</h1>
     ${candidateTabs('gaps')}
 
     ${open.length === 0 && closed.length === 0
