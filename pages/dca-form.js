@@ -14,7 +14,7 @@ function collectFormState() {
   return {
     savedAt:          new Date().toISOString(),
     candidateId:      selectedCandidate?.id,
-    candidateName:    selectedCandidate?.full_name,
+    candidateName:    displayName(selectedCandidate),
     scores:           JSON.parse(JSON.stringify(dcaScores)),
     incident_date:    document.getElementById('dca-date')?.value || '',
     incident_number:  document.getElementById('dca-incident')?.value || '',
@@ -228,7 +228,7 @@ function renderDcaForm() {
 
   setMain(`<div class="page">
     ${backToCandidate('Overview')}
-    <h1 class="section-title">New DCA — ${c.full_name}</h1>
+    <h1 class="section-title">New DCA — ${displayName(c)}</h1>
     ${candidateTabs('new-dca')}
 
     ${draftBanner}
