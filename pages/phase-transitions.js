@@ -23,7 +23,7 @@ async function renderPhaseLog() {
 
   const result = await dbQuery(() =>
     db.from('phase_transitions')
-      .select('*, sam:sam_id(full_name), fti:fti_id(full_name)')
+      .select('*, sam:sam_id(first_name,last_name), fti:fti_id(first_name,last_name)')
       .eq('candidate_id', c.id)
       .order('created_at')
   );
@@ -48,7 +48,7 @@ async function renderPhaseLog() {
           <td>${formatDate(t.created_at)}</td>
           <td style="font-family:var(--mono);color:${dirColor}">${arrow} ${t.from_phase||'—'} → ${t.to_phase}</td>
           <td style="color:${dirColor};font-family:var(--mono);font-size:11px">${t.direction.toUpperCase()}</td>
-          <td style="font-size:12px;color:var(--muted)">${t.sam?.full_name||'—'}</td>
+          <td style="font-size:12px;color:var(--muted)">${t.sam ? displayName(t.sam) : '—'}</td>
           <td style="font-size:12px;color:var(--muted)">${t.basis||'—'}</td>
         </tr>`;
       }).join('');
@@ -136,7 +136,7 @@ async function renderPhaseLog() {
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${c.full_name} — Phase Log</h1>
+    <h1 class="section-title">${displayName(c)} — Phase Log</h1>
     ${candidateTabs('phase')}
 
     <div class="metric-row" style="grid-template-columns:1fr 1fr 1fr">
