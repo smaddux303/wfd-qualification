@@ -96,12 +96,12 @@ function renderReference() {
       <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">I</span><span class="ref-desc">Orientation and observation. Candidate observes FTI and assists as directed. FTI models and narrates decisions.</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">II</span><span class="ref-desc">Guided practice. Candidate performs assessment and begins leading calls under close FTI supervision and coaching.</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">III</span><span class="ref-desc">Supervised leadership. Candidate functions as team leader on most calls. FTI allows autonomy, intervenes only for safety.</span></div>
-      <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">IV</span><span class="ref-desc">Capstone. Candidate functions as primary paramedic. FTI observes and evaluates. Intervention threshold is patient safety and Directive violations only.</span></div>
+      <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">IV</span><span class="ref-desc">Capstone (called Independent Practice Evaluation in this app). Candidate functions as primary paramedic. FTI observes and evaluates. Intervention threshold is patient safety and Directive violations only.</span></div>
     </div>
 
     <div class="card">
       <div class="card-title">Qualification timeline (Section 3.9)</div>
-      <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">Min</span><span class="ref-desc">384 on-shift hours — minimum before Capstone attempt</span></div>
+      <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">Min</span><span class="ref-desc">384 on-shift hours — minimum before Independent Practice Evaluation (Capstone) attempt</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">Std</span><span class="ref-desc">768 on-shift hours — standard maximum window</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--amber)">+1</span><span class="ref-desc">First extension: up to 384 additional hours (total 1,152). Requires Extension Conference, written improvement plan, and EMS Chief approval.</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--red)">+2</span><span class="ref-desc">Second extension: up to 384 more hours (absolute maximum 1,536). Requires independent conference and must address first extension deficiencies.</span></div>
@@ -109,7 +109,7 @@ function renderReference() {
     </div>
 
     <div class="card">
-      <div class="card-title">Capstone pass criteria (Section 3.6)</div>
+      <div class="card-title">Independent Practice Evaluation pass criteria (Manual Section 3.6 — "Capstone")</div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--green)">✓</span><span class="ref-desc">Minimum capability score of 4 in all domains (out of 25 total)</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--green)">✓</span><span class="ref-desc">Compression fraction greater than 90%</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--green)">✓</span><span class="ref-desc">No compression pause greater than 10 seconds</span></div>
@@ -131,7 +131,7 @@ function renderReference() {
       <div class="card-title">Paramedic-On-Hire pathway (Section 3.8)</div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">~8mo</span><span class="ref-desc"><strong>Phases I & II — Firefighter Qualification:</strong> Assigned to Engine/Truck companies under a Promoted Officer. Full duty-to-act applies. Medical Director QM provides clinical oversight. WFD Paramedic Qualification Program has not yet begun.</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--accent)">~2-3mo</span><span class="ref-desc"><strong>Phase III — WFD Paramedic Qualification Program:</strong> Assigned as third crewmember on Medic unit. Supervised and evaluated by designated FTI. Module B begins here. Replaces standard Phase III EMS component of the Firefighter Qualification Process.</span></div>
-      <p class="text-muted mt-2">Prior experience does not exempt a Candidate from completing all phase requirements and the Capstone.</p>
+      <p class="text-muted mt-2">Prior experience does not exempt a Candidate from completing all phase requirements and the Independent Practice Evaluation (Capstone).</p>
     </div>
 
     <div class="card">
@@ -140,7 +140,7 @@ function renderReference() {
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.3</span><span class="ref-desc">DCA trigger criteria and phase transition minimum demand requirement</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.4</span><span class="ref-desc">Capability gaps and closure pathways</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.5</span><span class="ref-desc">Clinical qualification phases I–IV</span></div>
-      <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.6</span><span class="ref-desc">Capstone evaluation requirements</span></div>
+      <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.6</span><span class="ref-desc">Independent Practice Evaluation requirements (called Capstone in the Manual)</span></div>
       <div class="ref-score-row"><span class="ref-num" style="color:var(--muted)">§3.9</span><span class="ref-desc">Timeline, extensions (two available), and formal failure</span></div>
       <p class="text-muted mt-2">This program is governed by the WFD Firefighter Paramedic Qualification Program Directive. Where a conflict exists between this app and the Directive, the Directive controls.</p>
     </div>
