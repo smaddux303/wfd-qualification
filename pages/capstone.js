@@ -19,7 +19,7 @@ async function renderCapstoneForm() {
   const ftis = await fetchProfiles('fti');
 
   function ftiOptions() {
-    return ftis.map(f => `<option value="${f.id}" ${d.fti_id===f.id||c.assigned_fti_id===f.id?'selected':''}>${f.full_name}</option>`).join('');
+    return ftis.map(f => `<option value="${f.id}" ${d.fti_id===f.id||c.assigned_fti_id===f.id?'selected':''}>${displayName(f)}</option>`).join('');
   }
 
   function checkRow(key, label, checked) {
@@ -53,7 +53,7 @@ async function renderCapstoneForm() {
   if (!canProctor) {
     setMain(`<div class="page">
       ${backToCandidate()}
-      <h1 class="section-title">${c.full_name} — Capstone</h1>
+      <h1 class="section-title">${displayName(c)} — Capstone</h1>
       ${candidateTabs('capstone')}
       ${existing
         ? `<div class="card">
@@ -77,7 +77,7 @@ async function renderCapstoneForm() {
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${c.full_name} — Capstone Evaluation</h1>
+    <h1 class="section-title">${displayName(c)} — Capstone Evaluation</h1>
     ${candidateTabs('capstone')}
 
     ${alertHTML('warn', 'Capstone is proctored by the SAM Officer. Minimum capability score of 4 in all domains required. All critical performance checklist items must be met.')}
