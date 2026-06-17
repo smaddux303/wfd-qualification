@@ -66,7 +66,7 @@ async function renderCandidateList() {
       *,
       fti:assigned_fti_id(first_name,last_name),
       sam:assigned_sam_id(first_name,last_name)
-    `);
+    `).neq('program_status', 'qualified'); // Qualified candidates live in Program History
     if (!error) { candidates = data; break; }
     fetchError = error;
     if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
@@ -87,7 +87,7 @@ async function renderCandidateList() {
   if (!candidates || candidates.length === 0) {
     setMain(`<div class="page">
       <h1 class="section-title">Candidates</h1>
-      ${alertHTML('info', 'No active candidates found. Use the Admin panel to add candidates.')}
+      ${alertHTML('info', 'No active candidates found. Use the Admin panel to add candidates, or check Program History for qualified candidates.')}
     </div>`);
     return;
   }
