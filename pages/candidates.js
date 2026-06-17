@@ -12,7 +12,7 @@ async function getCandidateData(candidateId) {
 
   const [candRes, avgRes, dcaRes, gapRes] = await Promise.all([
     db.from('candidates')
-      .select('*, fti:assigned_fti_id(full_name), sam:assigned_sam_id(full_name)')
+      .select('*, fti:assigned_fti_id(first_name,last_name), sam:assigned_sam_id(first_name,last_name)')
       .eq('id', candidateId)
       .single(),
     db.from('candidate_domain_averages')
@@ -20,7 +20,7 @@ async function getCandidateData(candidateId) {
       .eq('candidate_id', candidateId)
       .maybeSingle(),
     db.from('dcas')
-      .select('*, fti:fti_id(full_name)')
+      .select('*, fti:fti_id(first_name,last_name)')
       .eq('candidate_id', candidateId)
       .order('incident_date'),
     // Change #15 — join dca to get epcrlink for gap cards
@@ -64,8 +64,8 @@ async function renderCandidateList() {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const { data, error } = await db.from('candidates').select(`
       *,
-      fti:assigned_fti_id(full_name),
-      sam:assigned_sam_id(full_name)
+      fti:assigned_fti_id(first_name,last_name),
+      sam:assigned_sam_id(first_name,last_name)
     `);
     if (!error) { candidates = data; break; }
     fetchError = error;
@@ -94,10 +94,10 @@ async function renderCandidateList() {
 
   const rows = candidates.map(c => `
     <tr class="clickable" onclick="openCandidate('${c.id}')">
-      <td style="font-weight:500">${c.full_name}</td>
+      <td style="font-weight:500">${displayName(c)}</td>
       <td><span style="font-size:12px;color:var(--muted)">${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></td>
       <td>${phaseBadge(c.current_phase)}</td>
-      <td style="font-size:12px;color:var(--muted)">${c.fti?.full_name || '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.fti ? displayName(c.fti) : '—'}</td>
       <td style="font-family:var(--mono);font-size:12px">${c.qualifying_hours}h</td>
       <td><span style="color:var(--green);font-family:var(--mono);font-size:11px">${c.program_status}</span></td>
     </tr>`).join('');
@@ -152,7 +152,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
     ${backToList()}
 
     <div class="page-header">
-      <h1 class="section-title" style="margin:0">${c.full_name}</h1>
+      <h1 class="section-title" style="margin:0">${displayName(c)}</h1>
       ${phaseBadge(c.current_phase)}
       ${criticalOpen > 0 ? '<span class="gap-chip gap-critical"><span class="dot" style="background:var(--red)"></span>Critical gap open — advancement blocked</span>' : ''}
     </div>
@@ -208,7 +208,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
       <div class="card-title">Candidate information</div>
       <div class="info-grid">
         <div class="info-row"><span class="info-label">Group</span><span>${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></div>
-        <div class="info-row"><span class="info-label">Assigned FTI</span><span>${c.fti?.full_name || '—'}</span></div>
+        <div class="info-row"><span class="info-label">Assigned FTI</span><span>${c.fti ? displayName(c.fti) : '—'}</span></div>
         <div class="info-row"><span class="info-label">Attempt</span><span>${c.attempt_number} of 3</span></div>
         <div class="info-row"><span class="info-label">Program start</span><span>${formatDate(c.program_start_date)}</span></div>
         <div class="info-row"><span class="info-label">Max hours (primary)</span><span style="font-family:var(--mono)">${c.max_hours_primary}h</span></div>
@@ -265,7 +265,7 @@ function renderDcaHistory(dcas) {
           <td>${formatDate(d.incident_date)}</td>
           <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${d.incident_number||'—'}</td>
           <td>${epcrlinkHTML(d.epcrlink)}</td>
-          <td style="font-size:12px;color:var(--muted)">${d.fti?.full_name||'—'}</td>
+          <td style="font-size:12px;color:var(--muted)">${d.fti ? displayName(d.fti) : '—'}</td>
           <td>${phaseBadge(d.phase)}</td>
           <td>${acuityBadge(d.acuity)}</td>
           <td>${scoreDisplay(d.d1_capability,'cap')}</td>
@@ -278,7 +278,7 @@ function renderDcaHistory(dcas) {
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${c.full_name} — DCA History</h1>
+    <h1 class="section-title">${displayName(c)} — DCA History</h1>
     ${candidateTabs('dcas')}
     <div class="card" style="padding:0;overflow:hidden">
       <div class="table-wrap">
