@@ -1,4 +1,6 @@
-// pages/capstone.js — Capstone evaluation form (proctored by SAM Officer)
+// pages/capstone.js — Independent Practice Evaluation (formerly Capstone)
+// Proctored by SAM Officer. Passing triggers Section 3.7 exit documentation
+// check before the candidate can be marked Qualified.
 
 async function renderCapstoneForm() {
   destroyCharts();
@@ -53,11 +55,11 @@ async function renderCapstoneForm() {
   if (!canProctor) {
     setMain(`<div class="page">
       ${backToCandidate()}
-      <h1 class="section-title">${displayName(c)} — Capstone</h1>
+      <h1 class="section-title">${displayName(c)} — Independent Practice Evaluation</h1>
       ${candidateTabs('capstone')}
       ${existing
         ? `<div class="card">
-            <div class="card-title">Capstone result</div>
+            <div class="card-title">Evaluation result</div>
             <div class="metric-row" style="grid-template-columns:1fr 1fr">
               <div class="metric">
                 <div class="metric-label">Outcome</div>
@@ -70,20 +72,21 @@ async function renderCapstoneForm() {
             </div>
             ${existing.sam_narrative ? `<p style="color:var(--muted);font-size:13px;margin-top:8px">${existing.sam_narrative}</p>` : ''}
           </div>`
-        : alertHTML('info', 'No Capstone evaluation on file yet. The Capstone is proctored by a SAM Officer.')}
+        : alertHTML('info', 'No Independent Practice Evaluation on file yet. This evaluation is proctored by a SAM Officer.')}
     </div>`);
     return;
   }
 
   setMain(`<div class="page">
     ${backToCandidate()}
-    <h1 class="section-title">${displayName(c)} — Capstone Evaluation</h1>
+    <h1 class="section-title">${displayName(c)} — Independent Practice Evaluation</h1>
     ${candidateTabs('capstone')}
 
-    ${alertHTML('warn', 'Capstone is proctored by the SAM Officer. Minimum capability score of 4 in all domains required. All critical performance checklist items must be met.')}
+    ${alertHTML('warn', 'Proctored by the SAM Officer. Minimum capability score of 4 in all domains required. All critical performance checklist items must be met. A Pass result will check Section 3.7 exit documentation requirements before the candidate can be marked Qualified.')}
 
     <div id="cap-error"   class="alert alert-error"   style="display:none"></div>
     <div id="cap-success" class="alert alert-success" style="display:none"></div>
+    <div id="cap-missing-docs" class="alert alert-error" style="display:none"></div>
 
     <div class="card">
       <div class="card-title">Section 1 — Administrative</div>
@@ -111,7 +114,7 @@ async function renderCapstoneForm() {
           </select>
         </div>
         <div class="form-group">
-          <label>Total program hours at time of Capstone</label>
+          <label>Total program hours at time of evaluation</label>
           <input type="number" id="cap-total-hours" value="${d.total_program_hours||c.qualifying_hours||''}" />
         </div>
       </div>
@@ -159,26 +162,25 @@ async function renderCapstoneForm() {
         <label>If fail — SAM Officer determination</label>
         <select id="cap-fail-outcome">
           <option value="">Select…</option>
-          <option value="retake" ${d.outcome_determination==='retake'?'selected':''}>Appropriate for Capstone retake within current attempt</option>
+          <option value="retake" ${d.outcome_determination==='retake'?'selected':''}>Appropriate for retake within current attempt</option>
           <option value="regress_phase_iii" ${d.outcome_determination==='regress_phase_iii'?'selected':''}>Requires regression to Phase III before retake</option>
           <option value="formal_failure_review" ${d.outcome_determination==='formal_failure_review'?'selected':''}>Performance warrants formal failure review (Section 3.9.3)</option>
         </select>
       </div>
       <div class="form-group">
-        <label>SAM Officer narrative — summary of Capstone performance</label>
+        <label>SAM Officer narrative — summary of performance</label>
         <textarea id="cap-narrative" placeholder="Describe the candidate's performance across all domains…">${d.sam_narrative||''}</textarea>
       </div>
     </div>
 
     <div style="display:flex;gap:12px;margin-bottom:32px">
       <button class="btn" onclick="renderCandidateOverview()">Cancel</button>
-      <button class="btn btn-primary" style="margin-left:auto" onclick="saveCapstone('${existing?.id||''}')">
-        ${existing ? 'Update Capstone record' : 'Save Capstone evaluation'}
+      <button class="btn btn-primary" style="margin-left:auto" id="save-ipe-btn" onclick="saveCapstone('${existing?.id||''}')">
+        ${existing ? 'Update evaluation record' : 'Save Independent Practice Evaluation'}
       </button>
     </div>
   </div>`);
 
-  // Show/hide fail outcome when result changes
   document.getElementById('cap-result')?.addEventListener('change', function() {
     document.getElementById('cap-fail-wrap').style.display = this.value === 'fail' ? 'block' : 'none';
   });
@@ -205,8 +207,10 @@ function checkCapstonePassFail() {
 }
 
 async function saveCapstone(existingId) {
-  const errEl = document.getElementById('cap-error');
+  const errEl     = document.getElementById('cap-error');
+  const missingEl = document.getElementById('cap-missing-docs');
   errEl.style.display = 'none';
+  missingEl.style.display = 'none';
 
   const date   = document.getElementById('cap-date').value;
   const result = document.getElementById('cap-result').value;
@@ -215,6 +219,43 @@ async function saveCapstone(existingId) {
     errEl.textContent = 'Evaluation date and outcome are required.';
     errEl.style.display = 'block';
     return;
+  }
+
+  // ── If the result is Pass, run the Section 3.7 exit documentation check
+  // BEFORE saving anything, and require explicit confirmation ───────────
+  if (result === 'pass') {
+    const btn = document.getElementById('save-ipe-btn');
+    btn.disabled = true;
+    btn.textContent = 'Checking exit documentation…';
+
+    const { complete, missing } = await checkExitDocumentation(selectedCandidate.id);
+
+    btn.disabled = false;
+    btn.textContent = existingId ? 'Update evaluation record' : 'Save Independent Practice Evaluation';
+
+    if (!complete) {
+      missingEl.innerHTML = `
+        <strong>Cannot mark candidate Qualified — exit documentation incomplete (Manual Section 3.7):</strong>
+        <ul style="margin:8px 0 0 18px;padding:0">
+          ${missing.map(m => `<li style="margin-bottom:4px">${m}</li>`).join('')}
+        </ul>
+        <p style="margin-top:10px;font-size:12px">Resolve the items above, then return here to record the Pass result.</p>
+      `;
+      missingEl.style.display = 'block';
+      missingEl.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    // All exit documentation complete — require explicit confirmation
+    const confirmed = confirm(
+      `All Section 3.7 exit documentation requirements are met.\n\n` +
+      `You are about to qualify ${displayName(selectedCandidate)} as a WFD Fire Paramedic. ` +
+      `This will exit them from active candidate status and move their full record to Program History.\n\n` +
+      `This is a significant personnel action. An admin can reverse it later if needed, but it should not ` +
+      `be treated as routine.\n\nConfirm qualification?`
+    );
+
+    if (!confirmed) return;
   }
 
   const payload = {
@@ -226,10 +267,8 @@ async function saveCapstone(existingId) {
     location:          document.getElementById('cap-location')?.value || null,
     total_program_hours: parseFloat(document.getElementById('cap-total-hours')?.value)||null,
 
-    // Scenario elements
     ...Object.fromEntries(CAPSTONE_ELEMENTS.map(e => [e.key, document.getElementById(`cap-${e.key}`)?.checked||false])),
 
-    // Domain scores
     scenario_d1_demand: parseInt(document.getElementById('cap-demand-d1')?.value)||null,
     scenario_d2_demand: parseInt(document.getElementById('cap-demand-d2')?.value)||null,
     scenario_d3_demand: parseInt(document.getElementById('cap-demand-d3')?.value)||null,
@@ -241,31 +280,45 @@ async function saveCapstone(existingId) {
     cap_d4: parseInt(document.getElementById('cap-cap-d4')?.value)||null,
     cap_d5: parseInt(document.getElementById('cap-cap-d5')?.value)||null,
 
-    // Checklist
     ...Object.fromEntries(CAPSTONE_CHECKS.map(ch => [ch.key, document.getElementById(`cap-${ch.key}`)?.checked||false])),
 
-    // Outcome
     passed:               result === 'pass',
     outcome_determination: document.getElementById('cap-fail-outcome')?.value || null,
     sam_narrative:        document.getElementById('cap-narrative')?.value || null,
     sam_signed_at:        new Date().toISOString()
   };
 
-  let error;
+  let error, savedRecord;
   if (existingId) {
     ({ error } = await db.from('capstone_evaluations').update(payload).eq('id', existingId));
   } else {
-    ({ error } = await db.from('capstone_evaluations').insert(payload));
+    ({ data: savedRecord, error } = await db.from('capstone_evaluations').insert(payload).select().single());
   }
 
   if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
 
-  // If passed, update candidate status
+  // If passed, execute the actual qualification/exit action
   if (result === 'pass') {
-    await db.from('candidates').update({ program_status: 'qualified' }).eq('id', selectedCandidate.id);
+    const { error: qualError } = await qualifyCandidate(
+      selectedCandidate.id,
+      existingId || savedRecord?.id
+    );
+    if (qualError) {
+      errEl.textContent = 'Evaluation saved, but qualification status update failed: ' + qualError.message;
+      errEl.style.display = 'block';
+      return;
+    }
+    invalidateCache(selectedCandidate.id);
+
+    document.getElementById('cap-success').textContent =
+      `Independent Practice Evaluation saved. Result: PASS. Candidate qualified and moved to Program History.`;
+    document.getElementById('cap-success').style.display = 'block';
+    setTimeout(() => renderProgramHistory(), 2000);
+    return;
   }
 
-  document.getElementById('cap-success').textContent = `Capstone evaluation saved. Result: ${result.toUpperCase()}.`;
+  invalidateCache(selectedCandidate.id);
+  document.getElementById('cap-success').textContent = `Independent Practice Evaluation saved. Result: ${result.toUpperCase()}.`;
   document.getElementById('cap-success').style.display = 'block';
   setTimeout(() => renderCandidateOverview(), 1600);
 }
