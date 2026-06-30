@@ -21,14 +21,22 @@ async function renderPhaseLog() {
   const c = selectedCandidate;
   setMain(`<div class="page"><div class="loading">Loading phase log…</div></div>`);
 
-  const result = await dbQuery(() =>
-    db.from('phase_transitions')
-      .select('*, sam:sam_id(first_name,last_name), fti:fti_id(first_name,last_name)')
-      .eq('candidate_id', c.id)
-      .order('created_at')
-  );
+  const [transResult, hoursResult] = await Promise.all([
+    dbQuery(() =>
+      db.from('phase_transitions')
+        .select('*, sam:sam_id(first_name,last_name), fti:fti_id(first_name,last_name)')
+        .eq('candidate_id', c.id)
+        .order('created_at')
+    ),
+    dbQuery(() =>
+      db.from('hours_log')
+        .select('*, logger:logged_by(first_name,last_name)')
+        .eq('candidate_id', c.id)
+        .order('shift_date', { ascending: false })
+    )
+  ]);
 
-  if (result.error) {
+  if (transResult.error) {
     setMain(`<div class="page">
       ${backToCandidate()}
       ${alertHTML('error', 'Failed to load phase log. Please try again.')}
@@ -37,7 +45,8 @@ async function renderPhaseLog() {
     return;
   }
 
-  const transitions = result.data || [];
+  const transitions = transResult.data || [];
+  const hoursEntries = hoursResult.data || [];
 
   const rows = transitions.length === 0
     ? '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No phase transitions recorded yet.</td></tr>'
@@ -57,6 +66,19 @@ async function renderPhaseLog() {
   const isAssignedFti = c.assigned_fti_id === currentProfile?.id;
   const canLogHours   = isAssignedFti || isManager();
   const canExport     = isAssignedFti || isManager();
+
+  const hoursRows = hoursEntries.length === 0
+    ? '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">No hours logged yet.</td></tr>'
+    : hoursEntries.map(h => `
+      <tr>
+        <td>${formatDate(h.shift_date)}</td>
+        <td style="font-family:var(--mono);font-weight:500">${h.hours}h</td>
+        <td style="font-size:12px;color:var(--muted)">${h.logger ? displayName(h.logger) : '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${h.notes || '—'}</td>
+        <td>
+          ${(canLogHours) ? `<button class="btn btn-sm btn-danger" onclick="deleteHoursEntry('${h.id}')">Delete</button>` : ''}
+        </td>
+      </tr>`).join('');
 
   const hoursForm = canLogHours ? `
     <div class="card">
@@ -84,6 +106,20 @@ async function renderPhaseLog() {
           Current total: <strong style="color:var(--text);font-family:var(--mono)" id="hours-running-total">${c.qualifying_hours}h</strong>
           of ${c.max_hours_primary}h standard window
         </span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <div class="card-title" style="margin-bottom:0">Hours log history (${hoursEntries.length} entries)</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Hours</th><th>Logged by</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody id="hours-log-tbody">${hoursRows}</tbody>
+        </table>
       </div>
     </div>` : '';
 
@@ -174,7 +210,7 @@ async function renderPhaseLog() {
   </div>`);
 }
 
-// ── Log shift hours ────────────────────────────────────────────
+// ── Log shift hours — individual entry, not a running total ───
 async function logShiftHours() {
   const errEl = document.getElementById('hours-error');
   const sucEl = document.getElementById('hours-success');
@@ -183,6 +219,7 @@ async function logShiftHours() {
 
   const shiftHours = parseFloat(document.getElementById('hours-shift')?.value);
   const date       = document.getElementById('hours-date')?.value;
+  const notes      = document.getElementById('hours-notes')?.value?.trim() || null;
 
   if (!date || isNaN(shiftHours) || shiftHours <= 0) {
     errEl.textContent = 'Please enter a valid date and number of hours.';
@@ -196,12 +233,16 @@ async function logShiftHours() {
     return;
   }
 
-  const c        = selectedCandidate;
-  const newTotal = parseFloat((c.qualifying_hours + shiftHours).toFixed(1));
+  const c = selectedCandidate;
 
-  const { error } = await db.from('candidates')
-    .update({ qualifying_hours: newTotal })
-    .eq('id', c.id);
+  const { error } = await db.from('hours_log').insert({
+    candidate_id: c.id,
+    logged_by:    currentProfile.id,
+    shift_date:   date,
+    hours:        shiftHours,
+    is_migrated_balance: false,
+    notes
+  });
 
   if (error) {
     errEl.textContent = 'Error saving hours: ' + error.message;
@@ -209,18 +250,27 @@ async function logShiftHours() {
     return;
   }
 
-  selectedCandidate = { ...c, qualifying_hours: newTotal };
-  invalidateCache(c.id);
-
-  sucEl.textContent = `${shiftHours}h added. New total: ${newTotal}h.`;
+  sucEl.textContent = `${shiftHours}h logged for ${formatDate(date)}.`;
   sucEl.style.display = 'block';
 
   document.getElementById('hours-shift').value = '';
   document.getElementById('hours-notes').value = '';
 
-  // Update running total display without full reload
-  const totalEl = document.getElementById('hours-running-total');
-  if (totalEl) totalEl.textContent = `${newTotal}h`;
+  invalidateCache(c.id);
+  // Refresh the whole page so the running total (synced via DB trigger) and
+  // history table both reflect the new entry
+  setTimeout(() => renderPhaseLog(), 700);
+}
+
+// ── Delete a hours log entry ────────────────────────────────────
+async function deleteHoursEntry(entryId) {
+  if (!confirm('Delete this hours log entry? This will adjust the candidate\'s total hours accordingly.')) return;
+
+  const { error } = await db.from('hours_log').delete().eq('id', entryId);
+  if (error) { alert('Error deleting entry: ' + error.message); return; }
+
+  invalidateCache(selectedCandidate.id);
+  renderPhaseLog();
 }
 
 // ── Save phase transition ──────────────────────────────────────
