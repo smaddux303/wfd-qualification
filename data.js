@@ -17,6 +17,13 @@
 //          can be marked Qualified. Confirmation step added to prevent
 //          accidental qualification. New Program History view for qualified
 //          candidates, with full-record export and admin-only reversal.
+// v1.4.1 — Individual hours log entries replace the single running total.
+//          Each shift is logged separately with date, hours, who logged it,
+//          and optional notes — viewable, auditable, and individually
+//          deletable. Removed the dca_must_be_within_24h database
+//          constraint so legitimate backdated DCA entries aren't blocked
+//          (the 24-hour standard remains a documentation expectation, not
+//          a technical lock).
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
