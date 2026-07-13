@@ -214,7 +214,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
             <span>${c.fti ? displayName(c.fti) : '—'}</span>
             ${c.assigned_fti_id !== currentProfile?.id
               ? `<button class="btn btn-sm" onclick="selfAssignFti('${c.id}','${c.fti ? displayName(c.fti) : ''}')">Assign myself</button>`
-              : ''}
+              : `<button class="btn btn-sm" onclick="unassignFti('${c.id}')">Unassign myself</button>`}
           </span>
         </div>
         <div class="info-row"><span class="info-label">Attempt</span><span>${c.attempt_number} of 3</span></div>
@@ -271,6 +271,23 @@ async function selfAssignFti(candidateId, currentFtiName) {
   // Reload the candidate overview so the button disappears and FTI name updates
   openCandidate(candidateId);
 }
+
+// ── Unassign myself as FTI ─────────────────────────────────────
+async function unassignFti(candidateId) {
+  const candidateName = displayName(selectedCandidate);
+
+  if (!confirm(`Remove yourself as the assigned FTI for ${candidateName}? The candidate will have no assigned FTI until someone else assigns themselves or a SAM Officer makes an assignment.`)) return;
+
+  const { error } = await db.from('candidates')
+    .update({ assigned_fti_id: null })
+    .eq('id', candidateId);
+
+  if (error) { alert('Error removing assignment: ' + error.message); return; }
+
+  invalidateCache(candidateId);
+  openCandidate(candidateId);
+}
+
 async function loadAndRenderDcaHistory() {
   const cached = candidateDataCache[selectedCandidate.id];
   if (cached) { renderDcaHistory(cached.dcas); return; }
