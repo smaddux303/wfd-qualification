@@ -212,7 +212,7 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
           <span class="info-label">Assigned FTI</span>
           <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span>${c.fti ? displayName(c.fti) : '—'}</span>
-            ${currentProfile?.role === 'fti' && c.assigned_fti_id !== currentProfile?.id
+            ${c.assigned_fti_id !== currentProfile?.id
               ? `<button class="btn btn-sm" onclick="selfAssignFti('${c.id}','${c.fti ? displayName(c.fti) : ''}')">Assign myself</button>`
               : ''}
           </span>
