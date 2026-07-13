@@ -208,7 +208,15 @@ function _renderOverviewWithData(c, avg, dcas, gaps) {
       <div class="card-title">Candidate information</div>
       <div class="info-grid">
         <div class="info-row"><span class="info-label">Group</span><span>${CANDIDATE_GROUP_LABELS[c.candidate_group] || c.candidate_group}</span></div>
-        <div class="info-row"><span class="info-label">Assigned FTI</span><span>${c.fti ? displayName(c.fti) : '—'}</span></div>
+        <div class="info-row">
+          <span class="info-label">Assigned FTI</span>
+          <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span>${c.fti ? displayName(c.fti) : '—'}</span>
+            ${currentProfile?.role === 'fti' && c.assigned_fti_id !== currentProfile?.id
+              ? `<button class="btn btn-sm" onclick="selfAssignFti('${c.id}','${c.fti ? displayName(c.fti) : ''}')">Assign myself</button>`
+              : ''}
+          </span>
+        </div>
         <div class="info-row"><span class="info-label">Attempt</span><span>${c.attempt_number} of 3</span></div>
         <div class="info-row"><span class="info-label">Program start</span><span>${formatDate(c.program_start_date)}</span></div>
         <div class="info-row"><span class="info-label">Max hours (primary)</span><span style="font-family:var(--mono)">${c.max_hours_primary}h</span></div>
@@ -242,7 +250,27 @@ function buildGapChips(avg) {
   return `<div class="gap-row"><span class="gap-label">Domain gaps:</span>${chips}</div>`;
 }
 
-// ── DCA history — with ePCR links (Change #14) ────────────────
+// ── Self-assign as FTI ─────────────────────────────────────────
+async function selfAssignFti(candidateId, currentFtiName) {
+  const myName = displayName(currentProfile);
+  const candidateName = displayName(selectedCandidate);
+
+  const message = currentFtiName
+    ? `You are about to assign yourself as the FTI for ${candidateName}, replacing ${currentFtiName}. This will give you write access to their DCA form, gaps, and hours log. Confirm?`
+    : `You are about to assign yourself as the FTI for ${candidateName}. This will give you write access to their DCA form, gaps, and hours log. Confirm?`;
+
+  if (!confirm(message)) return;
+
+  const { error } = await db.from('candidates')
+    .update({ assigned_fti_id: currentProfile.id })
+    .eq('id', candidateId);
+
+  if (error) { alert('Error updating assignment: ' + error.message); return; }
+
+  invalidateCache(candidateId);
+  // Reload the candidate overview so the button disappears and FTI name updates
+  openCandidate(candidateId);
+}
 async function loadAndRenderDcaHistory() {
   const cached = candidateDataCache[selectedCandidate.id];
   if (cached) { renderDcaHistory(cached.dcas); return; }
