@@ -21,7 +21,7 @@ async function renderPhaseLog() {
   const c = selectedCandidate;
   setMain(`<div class="page"><div class="loading">Loading phase log…</div></div>`);
 
-  const [transResult, hoursResult] = await Promise.all([
+  const [transResult, hoursResult, ftiLogResult] = await Promise.all([
     dbQuery(() =>
       db.from('phase_transitions')
         .select('*, sam:sam_id(first_name,last_name), fti:fti_id(first_name,last_name)')
@@ -33,6 +33,12 @@ async function renderPhaseLog() {
         .select('*, logger:logged_by(first_name,last_name)')
         .eq('candidate_id', c.id)
         .order('shift_date', { ascending: false })
+    ),
+    dbQuery(() =>
+      db.from('fti_assignment_log')
+        .select('*, prev:previous_fti(first_name,last_name), next:new_fti(first_name,last_name), changer:changed_by(first_name,last_name)')
+        .eq('candidate_id', c.id)
+        .order('changed_at', { ascending: false })
     )
   ]);
 
@@ -47,6 +53,7 @@ async function renderPhaseLog() {
 
   const transitions = transResult.data || [];
   const hoursEntries = hoursResult.data || [];
+  const ftiLogEntries = ftiLogResult?.data || [];
 
   const rows = transitions.length === 0
     ? '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No phase transitions recorded yet.</td></tr>'
@@ -79,6 +86,31 @@ async function renderPhaseLog() {
           ${(canLogHours) ? `<button class="btn btn-sm btn-danger" onclick="deleteHoursEntry('${h.id}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
+
+  const ftiLogRows = ftiLogEntries.length === 0
+    ? '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">No assignment changes recorded yet.</td></tr>'
+    : ftiLogEntries.map(l => `
+      <tr>
+        <td>${formatDate(l.changed_at)}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.prev ? displayName(l.prev) : '<span style="font-style:italic">unassigned</span>'}</td>
+        <td style="font-size:12px">${l.next ? displayName(l.next) : '<span style="font-style:italic;color:var(--muted)">unassigned</span>'}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.changer ? displayName(l.changer) : '—'}</td>
+      </tr>`).join('');
+
+  const ftiLogCard = `
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <div class="card-title" style="margin-bottom:0">FTI assignment history (${ftiLogEntries.length} changes)</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>From</th><th>To</th><th>Changed by</th>
+          </tr></thead>
+          <tbody>${ftiLogRows}</tbody>
+        </table>
+      </div>
+    </div>`;
 
   const hoursForm = canLogHours ? `
     <div class="card">
@@ -205,6 +237,7 @@ async function renderPhaseLog() {
     </div>
 
     ${hoursForm}
+    ${ftiLogCard}
     ${exportButtons}
     ${phaseForm}
   </div>`);
