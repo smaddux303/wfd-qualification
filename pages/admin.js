@@ -58,7 +58,7 @@ async function renderAdmin() {
   }
 
   setMain(`<div class="page">
-    <h1 class="section-title">Admin Panel <span style="font-size:11px;font-family:var(--mono);color:var(--muted);font-weight:400;opacity:0.6">v1.4.1</span></h1>
+    <h1 class="section-title">Admin Panel <span style="font-size:11px;font-family:var(--mono);color:var(--muted);font-weight:400;opacity:0.6">v1.5.0</span></h1>
 
     <div id="admin-error"   class="alert alert-error"   style="display:none"></div>
     <div id="admin-success" class="alert alert-success" style="display:none"></div>
