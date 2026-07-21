@@ -30,6 +30,9 @@
 //          candidates with attention flags (open critical gaps, hours
 //          approaching limits, missing conferences, DCA activity gaps,
 //          unassigned candidates). Managers land on the dashboard at sign-in.
+// v1.5.1 — FTI assignment audit trail: every assignment change (self-assign,
+//          unassign, admin reassignment) is automatically logged by database
+//          trigger with who/when/from/to, and displayed on the Phase Log page.
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
