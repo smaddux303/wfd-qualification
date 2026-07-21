@@ -155,7 +155,13 @@ function showApp() {
   document.getElementById('sidebar-name').textContent = displayName(currentProfile);
   document.getElementById('sidebar-role').textContent = (currentProfile?.role || '').replace('_',' ');
   buildNav();
-  renderCandidateList();
+  // Managers land on the dashboard; FTIs land on the candidate list
+  if (isManager()) {
+    setActiveNav('dashboard');
+    renderDashboard();
+  } else {
+    renderCandidateList();
+  }
 }
 
 // ── Navigation ─────────────────────────────────────────────────
@@ -164,6 +170,8 @@ function buildNav() {
   const actingSam = currentProfile?.role === 'fti' && currentProfile?.acting_sam === true;
 
   const items = [
+    { key: 'dashboard',  label: 'Dashboard',  roles: ['sam_officer','admin'],
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>` },
     { key: 'candidates', label: 'Candidates', roles: ['fti','sam_officer','admin'],
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
     { key: 'reference',  label: 'Reference',  roles: ['fti','sam_officer','admin'],
@@ -174,8 +182,8 @@ function buildNav() {
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>` },
   ];
 
-  // Acting SAM FTIs get the Admin tab too, even though their base role is fti
-  const visible = items.filter(i => i.roles.includes(role) || (i.key === 'admin' && actingSam));
+  // Acting SAM FTIs get the Admin tab and Dashboard too, even though their base role is fti
+  const visible = items.filter(i => i.roles.includes(role) || (['admin','dashboard'].includes(i.key) && actingSam));
 
   document.getElementById('sidebar-nav').innerHTML = visible.map(i =>
     `<button class="nav-item" id="nav-${i.key}" onclick="navTo('${i.key}')">
@@ -197,6 +205,7 @@ function buildNav() {
 function navTo(page) {
   setActiveNav(page);
   selectedCandidate = null;
+  if (page === 'dashboard')  renderDashboard();
   if (page === 'candidates') renderCandidateList();
   if (page === 'reference')  renderReference();
   if (page === 'admin')      renderAdmin();
