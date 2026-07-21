@@ -261,9 +261,10 @@ async function selfAssignFti(candidateId, currentFtiName) {
 
   if (!confirm(message)) return;
 
-  const { error } = await db.from('candidates')
-    .update({ assigned_fti_id: currentProfile.id })
-    .eq('id', candidateId);
+  const { error } = await db.rpc('self_assign_fti', {
+    target_candidate_id: candidateId,
+    assign: true
+  });
 
   if (error) { alert('Error updating assignment: ' + error.message); return; }
 
@@ -278,9 +279,10 @@ async function unassignFti(candidateId) {
 
   if (!confirm(`Remove yourself as the assigned FTI for ${candidateName}? The candidate will have no assigned FTI until someone else assigns themselves or a SAM Officer makes an assignment.`)) return;
 
-  const { error } = await db.from('candidates')
-    .update({ assigned_fti_id: null })
-    .eq('id', candidateId);
+  const { error } = await db.rpc('self_assign_fti', {
+    target_candidate_id: candidateId,
+    assign: false
+  });
 
   if (error) { alert('Error removing assignment: ' + error.message); return; }
 
