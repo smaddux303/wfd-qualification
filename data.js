@@ -24,6 +24,12 @@
 //          constraint so legitimate backdated DCA entries aren't blocked
 //          (the 24-hour standard remains a documentation expectation, not
 //          a technical lock).
+// v1.5.0 — FTI self-assign/unassign hardened via SECURITY DEFINER function
+//          (only the assignment field can change, nothing else). New Program
+//          Dashboard for SAM Officers/admins: at-a-glance view of all active
+//          candidates with attention flags (open critical gaps, hours
+//          approaching limits, missing conferences, DCA activity gaps,
+//          unassigned candidates). Managers land on the dashboard at sign-in.
 
 const DOMAIN_LABELS = {
   d1: 'Patient Assessment',
